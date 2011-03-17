@@ -59,7 +59,7 @@ object Testsqlexpr extends RunnableTest {
   def conditions() {
     Test.startTestSet("ConditionExpr")
 
-    Test.assertTrue("1 == 1 DBInt", CEqual.compareValues(DBInt(1), DBInt(1)))
+    Test.assertTrue("1 == 1 DBInt", CEquals.compareValues(DBInt(1), DBInt(1)))
     Test.assertTrue("1 < 2 DBInt", CLess.compareValues(DBInt(1), DBInt(2)))
     Test.assertTrue("2.0 <= 2.0 DBDouble",
                     CLessEq.compareValues(DBDouble(2.0), DBDouble(2.0)))
