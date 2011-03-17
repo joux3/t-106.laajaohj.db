@@ -9,7 +9,7 @@ class IndexSearchFailed(msg: String) extends QueryProcException(msg)
 /** Abstract superclass for index structures.
  * The index is a mapping from keys, i.e., the values of certain
  * columns (whose numbers are given in columnNums) to the row objects
- * (of type Seq[DBValue]).
+ * (of type DBRow).
  * @param indexName a unique name given for the index
  * @param columnNums which columns of each row to use as index attributes
  */
@@ -19,20 +19,20 @@ abstract class Index(val indexName: String,
    * @param key the key (values for the given columnNums) to look for
    * @return a sequence of all rows from the table with this key
    */
-  def searchExact(key: Seq[DBValue]): Seq[Seq[DBValue]]
+  def searchExact(key: DBKey): Seq[DBRow]
   /** Empties the index */
   def clear()
   /** Inserts a row given as key and data into the index
    * @param key the key (selected columns from data)
    * @param data the row object
    */
-  def insert(key: Seq[DBValue], data: Seq[DBValue])
+  def insert(key: DBKey, data: DBRow)
   /** Inserts the given row into the index.
    * Should usually not be overriden in subclasses (calls the other insert).
    * @param row the row to insert
    */
-  def insert(row: Seq[DBValue]) {
-    insert(columnNums map { row(_) }, row)
+  def insert(row: DBRow) {
+    insert(new DBKey(columnNums map { row(_) }), row)
   }
   /** Does this index support range searches (searchRange)?
    * Override this in the subclasses that implement searchRange.
@@ -47,17 +47,17 @@ abstract class Index(val indexName: String,
    * @param highInclusive true to return keys that are == high
    * @return a sequence of all rows that are included in the range
    */
-  def searchRange(low: Seq[DBValue],
-                  high: Seq[DBValue],
+  def searchRange(low: DBKey,
+                  high: DBKey,
                   lowInclusive: Boolean,
-                  highInclusive: Boolean): Seq[DBValue] =
+                  highInclusive: Boolean): DBRow =
     throw new IndexSearchFailed("Range search is not supported!")
   /** Rebuilds the index using the data provided.
    * The default implementation calls clear and inserts everything one by
    * one; override as necessary.
    * @param rows all rows in the table
    */
-  def rebuild(rows: Seq[Seq[DBValue]]) {
+  def rebuild(rows: Seq[DBRow]) {
     clear()
     rows foreach { insert(_) }
   }

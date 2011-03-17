@@ -8,6 +8,28 @@ class TableNotFound(msg: String) extends QueryProcException(msg)
 class CreateTableFailed(msg: String) extends QueryProcException(msg)
 class InsertFailed(msg: String) extends QueryProcException(msg)
 
+/** Abstract class for sequences of DBValues */
+abstract class DBSeq(v: Seq[DBValue]) extends Seq[DBValue] with Ordered[DBSeq] {
+  def length = v.length
+  //def elements = v.elements
+  def apply(i: Int) = v.apply(i)
+  def iterator = v.iterator
+
+  /* compares by comparing each individual parts of sequence */
+  def compare(that: DBSeq) =
+    this.zip(that).foldLeft(0) {
+      (memo, c) => if (memo != 0) memo else c._1.compare(c._2)
+    }
+}
+
+/** Class that holds DBValues of a row */
+class DBRow(v: Seq[DBValue]) extends DBSeq(v) {
+}
+
+/** Class that holds DBValues of a key */
+class DBKey(v: Seq[DBValue]) extends DBSeq(v) {
+}
+
 /** Abstract superclass for tables */
 abstract class Table(columns: Seq[(String, DBType)],
                      constraints: Seq[TableConstraint]) {
@@ -33,7 +55,7 @@ abstract class Table(columns: Seq[(String, DBType)],
   }
 
   /** Checks that row has values whose types match the columns of this table */
-  def checkTypes(row: Seq[DBValue]) {
+  def checkTypes(row: DBRow) {
     if (row.size != columnTypes.size)
       throw new InsertFailed("Invalid number of values in row: " + row.size)
     (columnTypes zip row) foreach { case (t, v) =>
@@ -44,7 +66,7 @@ abstract class Table(columns: Seq[(String, DBType)],
   }
 
   /** Checks that row satisfies any constraints of this table */
-  def checkConstraints(row: Seq[DBValue]) {
+  def checkConstraints(row: DBRow) {
     constraints foreach { c =>
       c match {
         case TCPrimaryKey(pkcols) => {
@@ -61,7 +83,7 @@ abstract class Table(columns: Seq[(String, DBType)],
    * Calls doInsert for the actual insertion, and then
    * inserts the row to all indexes.
    */
-  def insert(row: Seq[DBValue]) {
+  def insert(row: DBRow) {
     checkTypes(row)
     checkConstraints(row)
     doInsert(row)
@@ -71,10 +93,10 @@ abstract class Table(columns: Seq[(String, DBType)],
   /** Actually inserts a new row into this table.
    * The row has already been checked to be correct.
    */
-  protected def doInsert(row: Seq[DBValue])
+  protected def doInsert(row: DBRow)
 
   /** Returns a sequence of all the rows in this table (in any order) */
-  def allRows: Seq[Seq[DBValue]]
+  def allRows: Seq[DBRow]
 }
 
 /** Stores the list of created tables.

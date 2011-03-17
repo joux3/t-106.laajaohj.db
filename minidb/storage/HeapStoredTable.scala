@@ -9,9 +9,9 @@ import scala.collection.mutable.HashMap
 class HeapStoredTable(columns: Seq[(String, DBType)],
                       constraints: Seq[TableConstraint]) extends Table(columns, constraints) {
   // Stores the rows unordered in this ArrayBuffer
-  protected val contents = ArrayBuffer[Seq[DBValue]]()
+  protected val contents = ArrayBuffer[DBRow]()
 
-  def doInsert(row: Seq[DBValue]) {
+  def doInsert(row: DBRow) {
     contents += row
   }
 

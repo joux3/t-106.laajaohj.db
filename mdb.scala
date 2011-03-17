@@ -12,7 +12,7 @@ import minidb.queryproc._
 QueryProc.processQuery(
   CreateTable("foo",
               List(("a", DBTypeText),
-                   ("b", DBTypeInt)
+                   ("b", DBTypeInt),
                    ("c", DBTypeDouble)),
               List()))
 

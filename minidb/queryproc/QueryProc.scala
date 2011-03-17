@@ -1,6 +1,7 @@
 package minidb.queryproc
 import minidb.sqlexpr._
 import minidb.storage.Table
+import minidb.storage.DBRow
 import minidb.storage.Index
 
 /** Abstract superclass for exceptions
@@ -34,7 +35,7 @@ object QueryProc {
     case SimpleSelect(_, _) => Some(processSelect(q))
     case InsertValues(tablename, values) => {
       val table = Table.find(tablename)
-      values foreach { row => table insert row }
+      values foreach { row => table insert new DBRow(row) }
       None
     }
     case CreateTable(tablename, columns, constraints) => {

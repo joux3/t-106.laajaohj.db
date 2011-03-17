@@ -1,8 +1,9 @@
 package minidb.queryproc
 import minidb.sqlexpr.DBValue
+import minidb.storage.DBRow
 
 /** Stores the result of a SELECT query */
-class QueryResult(columns: Seq[String], values: Seq[Seq[DBValue]]) {
+class QueryResult(columns: Seq[String], values: Seq[DBRow]) {
   def csvPrintResult {
     val header = new StringBuilder
     columns.addString(header, ";")
