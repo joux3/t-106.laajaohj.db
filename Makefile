@@ -1,17 +1,17 @@
 all: compile
 
 compile:
-	scalac -unchecked -deprecation minidb/*.scala minidb/*/*.scala
+	scalac -unchecked -deprecation -d bin/ minidb/*.scala minidb/*/*.scala
 
 run: compile runonly
 
 runonly:
-	scala minidb.MiniDB
+	scala -cp bin minidb.MiniDB
 
 test: compile
-	scala minidb.tests.RunTests
+	scala -cp bin minidb.tests.RunTests
 
 clean:
-	rm minidb/*.class minidb/*/*.class
+	rm -rf bin/minidb
 
 .PHONY: all compile run runonly test clean
