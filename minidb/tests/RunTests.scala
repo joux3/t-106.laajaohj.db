@@ -13,7 +13,8 @@ object RunTests {
   val categories: Map[String, RunnableTest] =
     Map(("parser" -> Testparser),
         ("sqlexpr" -> Testsqlexpr),
-        ("queryproc" -> Testqueryproc))
+        ("queryproc" -> Testqueryproc),
+        ("rbtreeindex" -> TestRBTreeIndex))
 
   def main(args: Array[String]) {
     val selectedCategories =

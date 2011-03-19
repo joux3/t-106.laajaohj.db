@@ -50,7 +50,7 @@ abstract class Index(val indexName: String,
   def searchRange(low: DBKey,
                   high: DBKey,
                   lowInclusive: Boolean,
-                  highInclusive: Boolean): DBRow =
+                  highInclusive: Boolean): Seq[DBRow] =
     throw new IndexSearchFailed("Range search is not supported!")
   /** Rebuilds the index using the data provided.
    * The default implementation calls clear and inserts everything one by
@@ -64,7 +64,8 @@ abstract class Index(val indexName: String,
 }
 
 object Index {
-  val defaultIndexType = "primitivehash"
+  // default to using rbtree because it can support range queries
+  val defaultIndexType = "rbtree"
   val allIndexes: ArrayBuffer[Index] = ArrayBuffer()
 
   /** Creates a new (empty) index.
@@ -85,6 +86,8 @@ object Index {
     val index = indexType match {
       case "primitivehash" =>
         new PrimitiveHashIndex(realIndexName, columnNums)
+      case "rbtree" =>
+        new RedBlackTreeIndex(realIndexName, columnNums)
       case _ => 
         throw new IndexCreateFailed("Unknown index type: "+indexType)
     }

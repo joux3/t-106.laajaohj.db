@@ -11,7 +11,6 @@ class InsertFailed(msg: String) extends QueryProcException(msg)
 /** Abstract class for sequences of DBValues */
 abstract class DBSeq(v: Seq[DBValue]) extends Seq[DBValue] with Ordered[DBSeq] {
   def length = v.length
-  //def elements = v.elements
   def apply(i: Int) = v.apply(i)
   def iterator = v.iterator
 
