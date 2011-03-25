@@ -17,6 +17,7 @@ sealed abstract class DBValue extends Ordered[DBValue] {
    * debug-printouts that use toString.
    */
   def valueString = toString
+  override def hashCode: Int
 }
 
 case class DBBoolean(v: Boolean) extends DBValue {
@@ -25,6 +26,13 @@ case class DBBoolean(v: Boolean) extends DBValue {
     case _ => super.compare(that)
   }
   override def valueString = v.toString
+  /** Very simple, but then again who'd want to use boolean values for
+   * for indices, at least by themselves?
+   */
+  override def hashCode = {
+    if (v) 1
+    else 0
+  }
 }
 
 case class DBInt(v: Int) extends DBValue {
@@ -34,6 +42,12 @@ case class DBInt(v: Int) extends DBValue {
     case _ => super.compare(that)
   }
   override def valueString = v.toString
+  /** Numbers used in indices, atleast by themselves,
+   * should already be unique.
+   */
+  override def hashCode = {
+    v
+  }
 }
 
 case class DBDouble(v: Double) extends DBValue {
@@ -43,6 +57,12 @@ case class DBDouble(v: Double) extends DBValue {
     case _ => super.compare(that)
   }
   override def valueString = v.toString
+  /** Numbers used in indices, atleast by themselves,
+   * should already be unique.
+   */
+  override def hashCode = {
+    v.toInt
+  }
 }
 
 case class DBString(v: String) extends DBValue {
@@ -51,6 +71,17 @@ case class DBString(v: String) extends DBValue {
     case _ => super.compare(that)
   }
   override def valueString = v
+  /** Hash strings using the simple but effective
+   * Shift-Add-Xor hashing algorithm
+   */
+  override def hashCode = {
+    var h = 0
+
+    for (i <- 0 to v.length) 
+      h ^= (h << 5) + (h >> 2) + v[i]
+
+    h
+  }
 }
 
 

@@ -27,6 +27,17 @@ class DBRow(v: Seq[DBValue]) extends DBSeq(v) {
 
 /** Class that holds DBValues of a key */
 class DBKey(v: Seq[DBValue]) extends DBSeq(v) {
+  /** Hash key by hashing together the hashes of the individual DBValues
+   * using the Shift-Add-Xor hashing algorithm
+   */
+	def hashCode: Int = {
+		var h = 0
+
+		for (i <- v) 
+			h ^= (h << 5) + (h >> 2) + i.hashCode
+
+		h
+	}
 }
 
 /** Abstract superclass for tables */
