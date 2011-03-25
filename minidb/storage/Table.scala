@@ -30,7 +30,7 @@ class DBKey(v: Seq[DBValue]) extends DBSeq(v) {
   /** Hash key by hashing together the hashes of the individual DBValues
    * using the Shift-Add-Xor hashing algorithm
    */
-	def hashCode: Int = {
+	override def hashCode: Int = {
 		var h = 0
 
 		v.foreach(i =>	h ^= (h << 5) + (h >> 2) + i.hashCode)
