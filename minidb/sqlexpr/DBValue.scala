@@ -77,8 +77,7 @@ case class DBString(v: String) extends DBValue {
   override def hashCode = {
     var h = 0
 
-    for (i <- 0 to v.length) 
-      h ^= (h << 5) + (h >> 2) + v[i]
+    v.foreach(c => h ^= (h << 5) + (h >> 2) + c)
 
     h
   }

@@ -33,8 +33,7 @@ class DBKey(v: Seq[DBValue]) extends DBSeq(v) {
 	def hashCode: Int = {
 		var h = 0
 
-		for (i <- v) 
-			h ^= (h << 5) + (h >> 2) + i.hashCode
+		v.foreach(i =>	h ^= (h << 5) + (h >> 2) + i.hashCode)
 
 		h
 	}
