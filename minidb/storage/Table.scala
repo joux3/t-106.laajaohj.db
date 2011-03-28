@@ -35,7 +35,9 @@ class DBKey(v: Seq[DBValue]) extends DBSeq(v) {
 
 		v.foreach(i =>	h ^= (h << 5) + (h >> 2) + i.hashCode)
 
-		h
+    // We need an unsigned int, and since Java and therefore Scala don't offer
+    // that built in, we need to mask off the sign bit to get around the issue
+    (h & 0x7fffffff)
 	}
 }
 

@@ -46,7 +46,9 @@ case class DBInt(v: Int) extends DBValue {
    * should already be unique.
    */
   override def hashCode = {
-    v
+    // We need an unsigned int, and since Java and therefore Scala don't offer
+    // that built in, we need to mask off the sign bit to get around the issue
+    (v & 0x7fffffff)
   }
 }
 
@@ -61,7 +63,9 @@ case class DBDouble(v: Double) extends DBValue {
    * should already be unique.
    */
   override def hashCode = {
-    v.toInt
+    // We need an unsigned int, and since Java and therefore Scala don't offer
+    // that built in, we need to mask off the sign bit to get around the issue
+    (v & 0x7fffffff).toInt
   }
 }
 
@@ -77,9 +81,11 @@ case class DBString(v: String) extends DBValue {
   override def hashCode = {
     var h = 0
 
-    v.foreach(c => h ^= (h << 5) + (h >> 2) + c)
+    v.foreach(c => h ^= (h << 5) + (h >>> 2) + c)
 
-    h
+    // We need an unsigned int, and since Java and therefore Scala don't offer
+    // that built in, we need to mask off the sign bit to get around the issue
+    (h & 0x7fffffff)
   }
 }
 
