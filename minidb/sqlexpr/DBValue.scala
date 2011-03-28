@@ -65,7 +65,7 @@ case class DBDouble(v: Double) extends DBValue {
   override def hashCode = {
     // We need an unsigned int, and since Java and therefore Scala don't offer
     // that built in, we need to mask off the sign bit to get around the issue
-    (v & 0x7fffffff).toInt
+    (v.toInt & 0x7fffffff)
   }
 }
 
