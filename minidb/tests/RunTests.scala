@@ -14,7 +14,8 @@ object RunTests {
     Map(("parser" -> Testparser),
         ("sqlexpr" -> Testsqlexpr),
         ("queryproc" -> Testqueryproc),
-        ("rbtreeindex" -> TestRBTreeIndex))
+        ("rbtreeindex" -> TestRBTreeIndex),
+        ("hashindex" -> TestHashIndex))
 
   def main(args: Array[String]) {
     val selectedCategories =
