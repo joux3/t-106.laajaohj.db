@@ -9,13 +9,13 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
     }
   }
 
-	private var currentTableSize = 32
-	private var table = new Array[List[HashTableEntry]](currentTableSize)
+  private var currentTableSize = 32
+  private var table = new Array[List[HashTableEntry]](currentTableSize)
   private var loadFactor = 0
   private val MAX_LOAD_FACTOR = 3
 
 
-	def searchExact(key: DBKey): Seq[DBRow] = {
+  def searchExact(key: DBKey): Seq[DBRow] = {
     val data = table(key.hashCode % currentTableSize)
 
     if (data == null) List()
@@ -23,18 +23,20 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
       var rows:List[DBRow] = Nil
 
       for (t <- data) {
-        rows = rows ::: List(t.row)
+        if (t.key == key) {
+          rows = rows ::: List(t.row)
+        }
       }
 
       rows
     }
-	}
+  }
 
-	def clear() {
+  def clear() {
     table = new Array[List[HashTableEntry]](currentTableSize)
-	}
+  }
 
-	def insert(key: DBKey, data: DBRow) {
+  def insert(key: DBKey, data: DBRow) {
     val hash = key.hashCode % currentTableSize
     val entry = new HashTableEntry(key, data)
 
@@ -49,7 +51,13 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
           resize
       }
     }
-	}
+  }
+
+  def rebuild(rows: Seq[DBRow]) {
+    currentTableSize = rows.size * 2
+    clear()
+    rows foreach { insert(_) }
+  }
 
   private def resize {
     loadFactor = 0

@@ -36,7 +36,7 @@ object TestHashIndex extends RunnableTest {
     Test.assertTrue("Returns correct row despite collision",
                       r2.contains(new DBRow(Seq(DBInt(32),
                                   DBString("ThirtyTwo")))) &&
-                      r2.contains(new DBRow(Seq(DBInt(0),
+                      !r2.contains(new DBRow(Seq(DBInt(0),
                                   DBString("Zero")))))
 
     Test.finishTestSet()
