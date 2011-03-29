@@ -30,15 +30,15 @@ class DBKey(v: Seq[DBValue]) extends DBSeq(v) {
   /** Hash key by hashing together the hashes of the individual DBValues
    * using the Shift-Add-Xor hashing algorithm
    */
-	override def hashCode: Int = {
-		var h = 0
+  override def hashCode: Int = {
+    var h = 0
 
-		v.foreach(i =>	h ^= (h << 5) + (h >> 2) + i.hashCode)
+    v.foreach(i =>  h ^= (h << 5) + (h >> 2) + i.hashCode)
 
     // We need an unsigned int, and since Java and therefore Scala don't offer
     // that built in, we need to mask off the sign bit to get around the issue
     (h & 0x7fffffff)
-	}
+  }
 }
 
 /** Abstract superclass for tables */
