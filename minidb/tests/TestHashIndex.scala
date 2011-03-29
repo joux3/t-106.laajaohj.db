@@ -27,13 +27,19 @@ object TestHashIndex extends RunnableTest {
   def testExactSearching {
     Test.startTestSet("Searching for exact rows")
 
-    Test.assertEquals("Has the first row",
-                      new DBRow(Seq(DBString("First"), DBString("MoreFirst"))),
-                      index.searchExact(new DBKey(Seq(DBString("First")))))
+    val r1 = index.searchExact(new DBKey(Seq(DBString("First"))))
+    val r2 = index.searchExact(new DBKey(Seq(DBInt(32))))
+    Test.assertTrue("Has the first row",
+                      r1.contains(new DBRow(Seq(DBString("First"),
+                                  DBString("MoreFirst")))))
 
-    Test.assertEquals("Returns correct row despite collision",
-                      new DBRow(Seq(DBInt(32), DBString("ThirtyTwo"))),
-                      index.searchExact(new DBKey(Seq(DBInt(32)))))
+    Test.assertTrue("Returns correct row despite collision",
+                      r2.contains(new DBRow(Seq(DBInt(32),
+                                  DBString("ThirtyTwo")))) &&
+                      r2.contains(new DBRow(Seq(DBInt(0),
+                                  DBString("Zero")))))
+
+    Test.finishTestSet()
   }
 
   def runTests {
