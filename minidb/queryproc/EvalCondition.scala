@@ -1,4 +1,5 @@
 package minidb.queryproc
+import scala.collection.mutable.ArrayBuffer
 import minidb.sqlexpr._
 
 class VariableNotFound(msg: String) extends QueryProcException(msg)
@@ -42,6 +43,36 @@ object EvalCondition {
       val ev2 = valeval(v2, env)
       DBBoolean(t.compareValues(ev1, ev2))
     }
+  }
+
+  /** Returns cases where a table field gets compared to a constant value 
+      to be used when deciding which indexes to use */
+  // XXX needs a better place?
+  def getFieldConstantEquals(where: ConditionExpr, results: ArrayBuffer[(VField, DBValue)]
+                            = new ArrayBuffer[(VField, DBValue)]): ArrayBuffer[(VField, DBValue)] = {
+    where match {
+      // only go through ANDs as they can be easily transferred into index lookups
+      case CAnd(c1, c2) => {
+        // keep on searching 
+        getFieldConstantEquals(c1, results)
+        getFieldConstantEquals(c2, results)
+      }
+      case CCompare(v1, v2, t) => {
+        if (t == CEquals) {
+          // only use if it compares a column to a constant
+          // XXX needs more work if ValueExpr gets more subclasses
+          val usable = v1.isInstanceOf[VConstant] ^ v2.isInstanceOf[VConstant]
+          if (usable) {
+            val field = if (v1.isInstanceOf[VField]) v1.asInstanceOf[VField] else v2.asInstanceOf[VField]
+            val constant = if (v1.isInstanceOf[VConstant]) v1.asInstanceOf[VConstant] 
+                           else v2.asInstanceOf[VConstant]
+            results += ((field, constant.v))
+          }
+        }
+      }
+      case _ => // ignore any other cases
+    }
+    results
   }
 
   /** Evaluates the given value expression */

@@ -74,7 +74,7 @@ class RedBlackTreeIndex(override val indexName: String,
     def uncle: TreeNode = 
       if (parent.parent.left.eq(this)) parent.parent.right else parent.parent.left
     
-    override def toString = "("+key.toString+")"
+    override def toString = "("+key.toString+", "+(if (black) "black" else "red")+")"
   }
 
   var root: TreeNode = ZNode
@@ -83,7 +83,7 @@ class RedBlackTreeIndex(override val indexName: String,
     root = ZNode
   }
 
-  private def printTree(node: TreeNode, ident: Int) { 
+  def printTree(node: TreeNode, ident: Int) { 
     if (node.eq(ZNode)) {
       println("-"*ident+" ZNode")
     } else {
