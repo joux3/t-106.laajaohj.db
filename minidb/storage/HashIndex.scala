@@ -53,7 +53,7 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
     }
   }
 
-  def rebuild(rows: Seq[DBRow]) {
+  override def rebuild(rows: Seq[DBRow]) {
     currentTableSize = rows.size * 2
     clear()
     rows foreach { insert(_) }
