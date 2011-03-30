@@ -54,7 +54,7 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
   }
 
   override def rebuild(rows: Seq[DBRow]) {
-    currentTableSize = scala.math.min(rows.size * 2, currentTableSize)
+    currentTableSize = scala.math.max(rows.size * 2, currentTableSize)
     clear()
     rows foreach { insert(_) }
   }
