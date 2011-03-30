@@ -7,8 +7,9 @@ class PrimitiveHashIndex(override val indexName: String,
                          columnNums: Seq[Int]) extends Index(indexName,
                                                              columnNums) {
   val theData: HashMap[DBKey, ArrayBuffer[DBRow]] = HashMap()
+
   def searchExact(key: DBKey): Seq[DBRow] = {
-    val result = theData(key)
+    val result = theData.getOrElse(key, ArrayBuffer())
     if (result.isEmpty) List()
     else result
   }

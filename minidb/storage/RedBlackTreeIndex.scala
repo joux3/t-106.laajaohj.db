@@ -225,11 +225,9 @@ class RedBlackTreeIndex(override val indexName: String,
         // check left subtree too
         searchTreeRange(low, high, lI, hI, n.left, result)
       }
-      if (low < n.key && n.key < high) {
-        result ++= n.rows
-      } else if (lI && low <= n.key && n.key < high) {
-        result ++= n.rows
-      } else if (hI && low < n.key && n.key <= high) {
+      if ((low < n.key && n.key < high) ||
+          (lI && low == n.key) ||(hI && high == n.key))
+      {
         result ++= n.rows
       }
       if (high > n.key) {

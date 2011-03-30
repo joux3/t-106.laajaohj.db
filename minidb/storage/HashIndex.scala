@@ -9,6 +9,7 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
     }
   }
 
+  private var rowCount = 0
   private var currentTableSize = 32
   private var table = new Array[List[HashTableEntry]](currentTableSize)
   private var loadFactor = 0
@@ -39,17 +40,16 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
   def insert(key: DBKey, data: DBRow) {
     val hash = key.hashCode % currentTableSize
     val entry = new HashTableEntry(key, data)
-
+    rowCount += 1
     if (table(hash) == null) {
       table(hash) = List(entry)
     } else {
       table(hash) = table(hash) ::: List(entry)
-      val l = table(hash).length
-      if (l > loadFactor) {
-        loadFactor = l
-        if (loadFactor > MAX_LOAD_FACTOR)
-          resize
-      }
+    }
+
+    // XXX find new max load factor as the definition got changed
+    if (rowCount / currentTableSize > MAX_LOAD_FACTOR) {
+      resize
     }
   }
 
@@ -64,9 +64,12 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
     val oldTable = table
     currentTableSize *= 2
     table = new Array[List[HashTableEntry]](currentTableSize)
-    
-    oldTable.foreach { s => s.foreach { r => 
-        insert(r.key, r.row)
+
+    oldTable.foreach { s => 
+      if (s != null) {
+        s.foreach { r => 
+          insert(r.key, r.row)
+        }
       }
     } 
   }

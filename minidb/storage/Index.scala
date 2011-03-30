@@ -86,6 +86,8 @@ object Index {
     val index = indexType match {
       case "primitivehash" =>
         new PrimitiveHashIndex(realIndexName, columnNums)
+      case "hash" => 
+        new HashIndex(realIndexName, columnNums)
       case "rbtree" =>
         new RedBlackTreeIndex(realIndexName, columnNums)
      case "avltree" =>

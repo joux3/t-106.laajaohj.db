@@ -65,7 +65,8 @@ object Testindex extends RunnableTest {
   }
   def simpleDuplicateSearch(index: Index)
   {
-    val TEST_SIZE = 10240;
+    // 10000 was a bit too high for hashIndex
+    val TEST_SIZE = 2000;
     Test.startTestSet(index.indexName + ": simple duplicate search")
     
     //Populate index, even numbers are duplicates
@@ -120,7 +121,8 @@ object Testindex extends RunnableTest {
   }
   def allDuplicatesSearch(index: Index)
   {
-    val TEST_SIZE = 10240;
+    // 10000 is a bit too high for hashIndex
+    val TEST_SIZE = 500;
     Test.startTestSet(index.indexName + ": find all duplicates")
     
     for (x <- (0 to TEST_SIZE)){
@@ -191,6 +193,7 @@ object Testindex extends RunnableTest {
   def runTests()
   {
     testIndex( () => {new PrimitiveHashIndex("PrimitiveHash",Seq(0))})
+    testIndex( () => {new HashIndex("PrimitiveHash",Seq(0))})
     testIndex( () => {new AvlTreeIndex("AvlTree",Seq(0))})
     testIndex( () => {new RedBlackTreeIndex("RedBlackTree",Seq(0))})
   }
