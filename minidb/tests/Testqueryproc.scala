@@ -66,8 +66,28 @@ object Testqueryproc extends RunnableTest {
     Test.finishTestSet()
   }
 
+  def selectTest() {
+    Test.startTestSet("Table queries")
+    // CREATE TABLE foo (0 INT, 1 TEXT);
+    QueryProc.processQuery(CreateTable("foo", Seq(("0", DBTypeInt), ("1", DBTypeText)), Seq()))
+    for (i <- 0 to 100) {
+      // INSERT INTO foo VALUES (i, i.toString)
+      QueryProc.processQuery(InsertValues("foo", Seq(Seq(DBInt(i), DBString(i.toString)))))
+    }
+    // test SELECT without index
+    val select = SimpleSelect(Seq("foo"), CCompare(VField("", "0"), VConstant(DBInt(87)), CEquals))
+    val r1 = QueryProc.processQuery(select)
+    Test.assertTrue("select without index", QueryProc.filteredRowCount == 101)
+    QueryProc.processQuery(CreateIndex("", "", "foo", Seq("0")))
+    val r2 = QueryProc.processQuery(select)
+    Test.assertTrue("select with index", QueryProc.filteredRowCount == 1)
+    Test.assertEquals("select results", r1.get.values, r2.get.values)
+    Test.finishTestSet()
+  }
+
   def runTests() {
     evalCondition1()
     evalCondition2()
+    selectTest()
   }
 }

@@ -3,7 +3,7 @@ import minidb.sqlexpr.DBValue
 import minidb.storage.DBRow
 
 /** Stores the result of a SELECT query */
-class QueryResult(columns: Seq[String], values: Seq[DBRow]) {
+class QueryResult(val columns: Seq[String], val values: Seq[DBRow]) {
   def csvPrintResult {
     val header = new StringBuilder
     columns.addString(header, ";")

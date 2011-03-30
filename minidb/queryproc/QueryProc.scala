@@ -12,6 +12,9 @@ abstract class QueryProcException(msg: String) extends Exception(msg)
 class QueryError(msg: String) extends QueryProcException(msg)
 
 object QueryProc {
+  // holds the count of rows filtered for the latest SELECT
+  var filteredRowCount = 0
+
   /** Executes the given SELECT query */
   private def processSelect(q: SQLExpr): QueryResult = q match {
     case SimpleSelect(from, where) => {
@@ -52,7 +55,9 @@ object QueryProc {
         } 
       }
 
+      filteredRowCount = 0
       val rows = possibleRows.filter { row =>
+        filteredRowCount += 1 // avoid possible O(n) behaviour of possibleRows.size
         EvalCondition.eval(where,
                            table.columnNames.map{(from(0), _)},
                            row) == DBBoolean(true) }
