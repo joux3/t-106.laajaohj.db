@@ -15,6 +15,7 @@ object RunTests {
         ("sqlexpr" -> Testsqlexpr),
         ("queryproc" -> Testqueryproc),
         ("rbtreeindex" -> TestRBTreeIndex),
+        ("index" -> Testindex),
         ("hashindex" -> TestHashIndex),
         ("testtable" -> TestTable))
 

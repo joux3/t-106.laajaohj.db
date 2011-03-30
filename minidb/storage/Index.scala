@@ -88,6 +88,8 @@ object Index {
         new PrimitiveHashIndex(realIndexName, columnNums)
       case "rbtree" =>
         new RedBlackTreeIndex(realIndexName, columnNums)
+     case "avltree" =>
+        new AvlTreeIndex(realIndexName, columnNums)
       case _ => 
         throw new IndexCreateFailed("Unknown index type: "+indexType)
     }
