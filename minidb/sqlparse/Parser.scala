@@ -9,12 +9,16 @@ object Parser {
     val matchInsert = """(?i)INSERT INTO (\w+) VALUES \(([a-zA-Z0-9 ,.\(\)\"]*)\);?""".r
     val matchSelect1 = """(?i)SELECT \* FROM ([a-zA-Z0-9, ]+) WHERE ([a-zA-Z0-9 ,.\"]);?""".r
     val matchSelect2 = """(?i)SELECT \* FROM ([a-zA-Z0-9, ]+);?""".r
+    val matchCreateIndex1 = """(?i)CREATE INDEX (\w*) ?USING (\w*) ON (\w+) \(([a-zA-Z0-9 ,]+)\)""".r
+    val matchCreateIndex2 = """(?i)CREATE INDEX (\w*) ?ON (\w+) \(([a-zA-Z0-9 ,]+)\)""".r
     
     sql match {
       case matchCreateTable(tableName, columnDefinitions) => parseCreateTable(tableName, columnDefinitions)
       case matchInsert(tableName, values) => parseInsert(tableName, values)
       case matchSelect1(tableNames, conditions) => parseSelect(tableNames, conditions)
       case matchSelect2(tableNames) => parseSelect(tableNames, null)
+      case matchCreateIndex1(indexName, indexType, tableName, columns) => parseCreateIndex(tableName, columns, indexName, indexType)
+      case matchCreateIndex2(indexName, tableName, columns) => parseCreateIndex(tableName, columns, indexName, "")
       case _ => CommitTransaction
     }
   }
@@ -39,6 +43,17 @@ object Parser {
       }
     })
     new CreateTable(tableName, columns, List())
+  }
+  
+  // Parse queries like:
+  // CREATE INDEX indexname USING indextype ON tablename (columns)
+  def parseCreateIndex(tableName: String, columns: String, indexName: String, indexType: String): SQLExpr = {
+    var columnList = columns.split(",")
+    var columnListFormatted : List[(String)] = List()
+    columnList.foreach(column => {
+      columnListFormatted = columnListFormatted ::: List(column.trim)
+    })
+    new CreateIndex(indexName, indexType, tableName, columnListFormatted)
   }
   
   // Parse queries like:

@@ -50,10 +50,33 @@ object Testparser extends RunnableTest {
     */
     Test.finishTestSet()
   }
+  
+  def createIndex() {
+    Test.startTestSet("parsing create index statements")
+    
+    Test.assertEquals("without indexname and indextype", 
+      Parser.parse("CREATE INDEX ON tablename (column1, column2, column3)"),
+      CreateIndex("", "", "tablename", List("column1", "column2", "column3")))
+    
+    Test.assertEquals("with indexname but without indextype",
+      Parser.parse("CREATE INDEX indexname ON tablename (column1, column2, column3)"),
+      CreateIndex("indexname", "", "tablename", List("column1", "column2", "column3")))
+    
+    Test.assertEquals("without indexname but with indextype",
+      Parser.parse("CREATE INDEX USING indextype ON tablename (column1, column2, column3)"),
+      CreateIndex("", "indextype", "tablename", List("column1", "column2", "column3")))
+    
+    Test.assertEquals("with indexname and indextype",
+      Parser.parse("CREATE INDEX indexname USING indextype ON tablename (column1, column2, column3)"),
+      CreateIndex("indexname", "indextype", "tablename", List("column1", "column2", "column3")))
+    
+    Test.finishTestSet()
+  }
 
   def runTests() {
     createTable()
     insert()
     simpleSelect()
+    createIndex()
   }
 }
