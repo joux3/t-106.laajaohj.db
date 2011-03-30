@@ -40,14 +40,12 @@ object Testparser extends RunnableTest {
     Test.assertEquals("select without where",
       Parser.parse("SELECT * FROM foo;"),
       SimpleSelect(List("foo"), CTrue))
-    /*
-    Test.assertEquals("one comparison in where",
-      Parser.parse("SELECT * FROM foo WHERE b > 6;"),
+    Test.assertEquals("nested comparisons in where",
+      Parser.parse("SELECT * FROM foo WHERE b > 6 AND (c < 5 OR c > 8);"),
       SimpleSelect(List("foo"), 
-                   CCompare(VField("", "b"),
-                            VConstant(DBInt(6)),
-                            CGreater)))
-    */
+                   CAnd(CCompare(VField("", "b"), VConstant(DBInt(6)), CGreater),
+                        COr(CCompare(VField("", "c"), VConstant(DBInt(5)), CLess),
+                            CCompare(VField("", "c"), VConstant(DBInt(8)), CGreater)))))
     Test.finishTestSet()
   }
   
@@ -72,11 +70,29 @@ object Testparser extends RunnableTest {
     
     Test.finishTestSet()
   }
+  
+  def parseConditions() {
+    Test.startTestSet("parsing conditions")
+    
+    Test.assertEquals("ordinary values", 
+      Parser.conditionsToList("\"Testi\" = abc AND (12.456 <= cde) AND True"), 
+      List(VConstant(DBString("Testi")), CEquals, VField("", "abc"), CAnd, "(", VConstant(DBDouble(12.456)), CLessEq, VField("", "cde"), ")", CAnd, CTrue))
+    
+    Test.assertEquals("parsing comparisons",
+      Parser.parseComparisons(List(VConstant(DBString("Testi")), CEquals, VField("", "abc"), CAnd, "(", VConstant(DBDouble(12.456)), CLessEq, VField("", "cde"), ")", CAnd, CTrue)),
+      List(CCompare(VConstant(DBString("Testi")), VField("", "abc"), CEquals), CAnd, "(", CCompare(VConstant(DBDouble(12.456)), VField("", "cde"), CLessEq), ")", CAnd, CTrue))
+    
+    Test.assertEquals("parsing condition string to ConditionExpr",
+      Parser.parseConditions("\"Testi\" = abc AND (12.456 <= cde) AND True"),
+      CAnd(CAnd(CCompare(VConstant(DBString("Testi")), VField("", "abc"), CEquals), CCompare(VConstant(DBDouble(12.456)), VField("", "cde"), CLessEq)), CTrue))
+    Test.finishTestSet()
+  }
 
   def runTests() {
     createTable()
     insert()
     simpleSelect()
     createIndex()
+    parseConditions()
   }
 }
