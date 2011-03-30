@@ -14,7 +14,7 @@ class IndexSearchFailed(msg: String) extends QueryProcException(msg)
  * @param columnNums which columns of each row to use as index attributes
  */
 abstract class Index(val indexName: String,
-                     columnNums: Seq[Int]) {
+                     val columnNums: Seq[Int]) {
   /** Searches for exactly the given key.
    * @param key the key (values for the given columnNums) to look for
    * @return a sequence of all rows from the table with this key

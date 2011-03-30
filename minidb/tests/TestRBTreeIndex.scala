@@ -17,7 +17,7 @@ object TestRBTreeIndex extends RunnableTest {
   }
 
   def testExactSearching {
-    Test.startTestSet("adding rows to index")
+    Test.startTestSet("searching exactly")
     1.to(testCount).foreach {x =>
       val r = index.searchExact(new DBKey(Seq(DBInt(x))))
       Test.assertEquals("result count", 2, r.size)

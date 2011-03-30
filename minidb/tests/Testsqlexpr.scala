@@ -1,4 +1,5 @@
 package minidb.tests
+import minidb.queryproc._
 import minidb.sqlexpr._
 
 object Testsqlexpr extends RunnableTest {
@@ -67,10 +68,28 @@ object Testsqlexpr extends RunnableTest {
     Test.finishTestSet()
   }
 
+  def fieldConstantEquals() {
+    Test.startTestSet("getFieldConstantEquals")
+    // nothing should match
+    var where: ConditionExpr = CCompare(VField("a", "b"), VField("a", "c"), CEquals)
+    Test.assertTrue("simple AND case", EvalCondition.getFieldConstantEquals(where).equals( 
+                    Seq()))
+    // ((a.b = 5) && (a.c = 8))
+    where = CAnd(CCompare(VField("a", "b"), VConstant(DBInt(5)), CEquals), CCompare(VField("a", "c"), VConstant(DBInt(8)), CEquals))
+    Test.assertTrue("simple AND case", EvalCondition.getFieldConstantEquals(where).equals( 
+                    Seq( (VField("a", "b"), DBInt(5)), (VField("a", "c"), DBInt(8)) )))
+    // (compare || compare) && (... = ...)
+    where = CAnd(COr( CCompare(VField("a", "b"), VConstant(DBInt(5)), CLess), CCompare(VField("a", "c"), VConstant(DBDouble(5)), CEquals)), CCompare(VField("a", "d"), VConstant(DBInt(7)), CEquals))
+    Test.assertTrue("complex case", EvalCondition.getFieldConstantEquals(where).equals( 
+                    Seq( (VField("a", "d"), DBInt(7)) )))
+    Test.finishTestSet()
+  }
+
   def runTests() {
     values()
     types()
     comparisons()
     conditions()
+    fieldConstantEquals()
   }
 }

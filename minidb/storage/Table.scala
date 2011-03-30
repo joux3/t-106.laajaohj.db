@@ -101,6 +101,46 @@ abstract class Table(columns: Seq[(String, DBType)],
     indexes foreach { _.insert(row) }
   }
 
+
+  /** Returns indexes that have atleast one of the given columns
+   *  as its key
+   * 
+   *  Returns the indexes that can be used, sorted by the number of 
+   *  common columns in index & fields
+   */
+  def getUsableIndexes(fields: Seq[VField]): Seq[Index] = {
+    // XXX doesn't check if VField.table matches the current one!
+    val columnNums = new ArrayBuffer[Int]
+    fields.foreach {field => 
+      // check that this table has this field
+      if (columnNames.contains(field.fieldname)) {
+        columnNums += columnNames.indexOf(field.fieldname)
+      }
+    }
+
+    if (columnNums.isEmpty) {
+      // no way to give out an index to use
+      Seq()
+    } else {       
+      // pick those indexes which have all of their columns in
+      // the local columnNums
+      val usableIndexes = indexes.filter {index =>
+        index.columnNums.forall {num => columnNums.contains(num)}
+      }
+      // sort by the number of common columns
+      usableIndexes.sortWith {(a, b) =>
+        a.columnNums.size > b.columnNums.size
+      }
+      usableIndexes
+    }
+  }
+
+  // returns number of column that matches the given field
+  // XXX doesn't check if VField even matches this table
+  def getColumnNum(field: VField): Int = {
+    columnNames.indexOf(field.fieldname)
+  }
+
   /** Actually inserts a new row into this table.
    * The row has already been checked to be correct.
    */

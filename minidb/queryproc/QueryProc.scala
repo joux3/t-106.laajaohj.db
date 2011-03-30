@@ -3,6 +3,7 @@ import minidb.sqlexpr._
 import minidb.storage.Table
 import minidb.storage.DBRow
 import minidb.storage.Index
+import minidb.storage.DBKey
 
 /** Abstract superclass for exceptions
  * that can be returned when queries are executed */
@@ -19,9 +20,39 @@ object QueryProc {
       if (from.size != 1)
         throw new QueryError("We only support selecting from one table!")
       val table = Table.find(from(0))
-      // the following just scans through the full table, without
-      // using any indexes...
-      val rows = table.allRows.filter { row =>
+      // default to a full table scan
+      var possibleRows: Seq[DBRow] = table.allRows
+      // XXX needs tests!
+      // try to find some possible indexes
+      val fieldsUsed = EvalCondition.getFieldConstantEquals(where)
+      if (!fieldsUsed.isEmpty) {
+        val indexes = table.getUsableIndexes(fieldsUsed.map(_._1))
+        if (!indexes.isEmpty) {
+          // use the index with longest number of common columns
+          val index = indexes(0)
+          val indexNums = index.columnNums
+          // contruct DBKey for index
+          val valueArray = new Array[DBValue](indexNums.size)
+          var placedValues = 0
+          fieldsUsed.foreach {field => 
+            // check if the current field is used in the index
+            if (indexNums.contains(table.getColumnNum(field._1))) {
+              // it is used, place it on the key
+              placedValues += 1
+              valueArray(indexNums.indexOf(table.getColumnNum(field._1))) = field._2
+            }
+          }
+          if (placedValues != indexNums.size) {
+            // XXX don't throw an exception as a full table scan 
+            // can still fetch the rows
+            throw new RuntimeException("Internal error in QueryProc!")
+          } else {
+            possibleRows = index.searchExact(new DBKey(valueArray))
+          }
+        } 
+      }
+
+      val rows = possibleRows.filter { row =>
         EvalCondition.eval(where,
                            table.columnNames.map{(from(0), _)},
                            row) == DBBoolean(true) }
