@@ -196,5 +196,6 @@ object Testindex extends RunnableTest {
     testIndex( () => {new HashIndex("PrimitiveHash",Seq(0))})
     testIndex( () => {new AvlTreeIndex("AvlTree",Seq(0))})
     testIndex( () => {new RedBlackTreeIndex("RedBlackTree",Seq(0))})
+    testIndex( () => {new BPlusTreeIndex("BPlusTree",Seq(0))})
   }
 }

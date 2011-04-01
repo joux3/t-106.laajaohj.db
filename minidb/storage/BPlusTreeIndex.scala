@@ -1,21 +1,22 @@
 package minidb.storage
 import scala.collection.mutable.ArrayBuffer
 
-/** B+ tree
+/** B+ tree index
   * handles multiples with ArrayBuffer
-  * TODO: deletion, range search */
+  * order = maximum number of children in nodes & values in leaves
+  * TODO: deletion */
 
-// order = maximum number of children in nodes & values in leaves
 class BPlusTree(val order: Int) {
   if (order < 4) throw new
                  RuntimeException("Order of BPlusTree must be >= 4")
-  // this is to simplify the implementation
+  // this is to make sure we can divide a full node into legal
+  // nodes without adding any keys/values
   if (order % 2 != 0) throw new
                       RuntimeException("Order of BPlusTree must be divisible by 2")
   
   abstract class Node(nKeysMax: Int) {
-    // in a leaf node, key represents the key of the corresponding value
-    // in an inner node, key represents the smallest key in right subtree
+    // in a leaf node, key is the key of the corresponding value
+    // in an inner node, key is the smallest key in right subtree
     val keys = new Array[DBKey](nKeysMax)
     var nKeys: Int = 0
     
@@ -32,9 +33,16 @@ class BPlusTree(val order: Int) {
     
     //** returns index of first key that is >= than given key
     // TODO: implement binary search and join with findexact?
-    def findIndexOfKey(key: DBKey) : Int = {
+    def findIndexOfBiggerOrEqualKey(key: DBKey) : Int = {
       var index = 0
       while (index < nKeys && keys(index) < key) index += 1
+      index
+    }
+    
+    //** returns index of first key that is > than given key
+    def findIndexOfBiggerKey(key: DBKey) : Int = {
+      var index = 0
+      while (index < nKeys && keys(index) <= key) index += 1
       index
     }
   }
@@ -50,13 +58,32 @@ class BPlusTree(val order: Int) {
   
   private var root: Node = new LeafNode
 
+  //** debug printing functions
+  def f(path: Seq[Int]) : Node = { // find given node
+    var node: Node = root
+    path foreach (i => node = node.asInstanceOf[InnerNode].children(i))
+    node
+  }
+  
+  def pk(path: Seq[Int]) { // print keys of a node
+    var node = f(path)
+    for (i <- 0 to node.nKeys-1) print(node.keys(i).toString() + " ")
+  }
+  
+  def pv(path: Seq[Int]) { // print values of a leaf node
+    var node = f(path).asInstanceOf[LeafNode]
+    for (i <- 0 to node.nKeys-1) print(node.values(i).toString() + " ")
+  }
+
   def shiftArrayElems[T](array: Array[T], start: Int, end: Int, direction: Int) {
     var range = if (direction > 0) (end to start by -1) else (start to end)
     for (i <- range) array(i + direction) = array(i)
   }
 
+  def clear() { root = new LeafNode }
+
   //** split given child; the child must be full, parent must not be full
-  def splitChild(parent: InnerNode, index: Int) {
+  private def splitChild(parent: InnerNode, index: Int) {
     val child = parent.children(index)
 
     // shift keys and children in parent to make room for the new child
@@ -96,17 +123,40 @@ class BPlusTree(val order: Int) {
     }
   }
 
-  def search(key: DBKey) : Seq[DBRow] = {
+  //** find leaf node where the key should be if it existed
+  private def findLeafNode(key: DBKey) : LeafNode = {
     var node = root
     while (!(node.isInstanceOf[LeafNode]))
-      node = node.asInstanceOf[InnerNode].children(node.findIndexOfKey(key))
+      node = node.asInstanceOf[InnerNode].children(node.findIndexOfBiggerKey(key))
+    node.asInstanceOf[LeafNode]
+  }
+
+  def search(key: DBKey) : Seq[DBRow] = {
+    val node = findLeafNode(key)
     val index = node.findIndexOfExactKey(key)
-    if (index == -1) List() else node.asInstanceOf[LeafNode].values(index)
+    if (index == -1) Seq[DBRow]() else node.values(index)
+  }
+
+  def searchRange(low: DBKey, high: DBKey, lowIncl: Boolean, 
+                           highIncl: Boolean): Seq[DBRow] = {
+    val result = new ArrayBuffer[DBRow]
+    var node = findLeafNode(low)
+    var index = if (lowIncl) node.findIndexOfBiggerOrEqualKey(low)
+                else node.findIndexOfBiggerKey(low)
+    if (index >= node.nKeys) { node = node.nextLeaf; index = 0 }
+    val compareF = if (highIncl) { (x: DBKey) => x<=high } else { (x: DBKey) => x<high }
+    
+    while (node != null && compareF(node.keys(index))) {
+      result ++= node.values(index)
+      index += 1
+      if (index >= node.nKeys) { node = node.nextLeaf; index = 0 }
+    }
+    result
   }
 
   def insert(key: DBKey, value: DBRow) {
     // travel down the tree, splitting full nodes on the way
-    var node: Node = root
+    var node = root
     if (root.full()) {
       root = new InnerNode
       val rootNode = root.asInstanceOf[InnerNode]
@@ -118,7 +168,7 @@ class BPlusTree(val order: Int) {
     
     while (!node.isInstanceOf[LeafNode]) {
       val currNode = node.asInstanceOf[InnerNode]
-      val index = currNode.findIndexOfKey(key)
+      val index = currNode.findIndexOfBiggerKey(key)
       if (!currNode.children(index).full())
         node = currNode.children(index)
       else {
@@ -129,12 +179,14 @@ class BPlusTree(val order: Int) {
     }
     
     val leafNode = node.asInstanceOf[LeafNode]
-    val insIndex = leafNode.findIndexOfKey(key)
-    if (leafNode.keys(insIndex) == key) leafNode.values(insIndex) += value
+    val insIndex = leafNode.findIndexOfBiggerOrEqualKey(key)
+    if (insIndex < leafNode.nKeys && leafNode.keys(insIndex) == key)
+      leafNode.values(insIndex) += value
     else {
       shiftArrayElems(leafNode.keys, insIndex, leafNode.nKeys - 1, 1)
       shiftArrayElems(leafNode.values, insIndex, leafNode.nKeys - 1, 1)
       leafNode.keys(insIndex) = key
+      leafNode.values(insIndex) = new ArrayBuffer[DBRow]
       leafNode.values(insIndex) += value
       leafNode.nKeys += 1
     }
@@ -144,10 +196,15 @@ class BPlusTree(val order: Int) {
 class BPlusTreeIndex(override val indexName: String,
                  columnNums: Seq[Int]) extends Index(indexName,
                                                      columnNums) {
+  override def supportsRangeSearch = true
   private val order = 16
-  private var bPlusTree = new BPlusTree(order)
+  private val bPlusTree = new BPlusTree(order)
   
-  def clear() { bPlusTree = new BPlusTree(order) }
-  def searchExact(key: DBKey): Seq[DBRow] = bPlusTree.search(key)
+  def clear() { bPlusTree.clear() }
+  def searchExact(key: DBKey): Seq[DBRow] = bPlusTree.search(key)  
+  override def searchRange(low: DBKey, high: DBKey, lowInclusive: Boolean, 
+                           highInclusive: Boolean): Seq[DBRow] =
+    bPlusTree.searchRange(low, high, lowInclusive, highInclusive)
+
   def insert(key: DBKey, data: DBRow) { bPlusTree.insert(key, data) }
 }
