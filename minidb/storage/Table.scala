@@ -75,19 +75,49 @@ abstract class Table(columns: Seq[(String, DBType)],
                                " should be of type "+t)
     }
   }
-
+  
   /** Checks that row satisfies any constraints of this table */
   def checkConstraints(row: DBRow) {
     constraints foreach { c =>
       c match {
         case TCPrimaryKey(pkcols) => {
-          // XXX should check that the columns in the primary key are
-          // unique and throw new InsertFailed if not
-          ()
-        }
+          // checks that the PRIMARY KEY columns are
+          // unique and throws new InsertFailed if not
+	  // XXX needs tests, currently a table can have MULTIPLE primary keys, this is not supported in SQL
+          pkcols foreach { col =>
+	    val colnum = columnNames.indexOf(col)
+	    allRows foreach { ac =>
+	      if (ac(colnum) == row(colnum))
+		throw new InsertFailed("PRIMARY KEY "+col+" is not unique.")  
+	     }
+	    }
+	  ()
+	   }
+	case TCNotNull(nncols) => { 
+	  // checks that the values in NOT NULL columns are not NULL
+	  // if are throws new InsertFailed
+	  nncols foreach { col =>
+	    val colnum = columnNames.indexOf(col)
+	    if (row(colnum) == null)
+	      throw new InsertFailed("NOT NULL column "+col+" is NULL.")
+	    }
+	  ()
+	   }
+	case TCUnique(unicols) => { 
+	  unicols foreach { col =>
+	    val colnum = columnNames.indexOf(col)
+	    allRows foreach { ac =>
+	      if (ac(colnum) == row(colnum))
+		throw new InsertFailed("UNIQUE key "+col+" is not unique.")
+	     }
+	   }
+	  ()
+	   }  
+	 }
+       }
       }
-    }
-  }
+    
+  
 
   /** Inserts a new row into this table.
    * Checks the types and constraints of the given values.

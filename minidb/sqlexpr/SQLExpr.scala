@@ -86,3 +86,13 @@ sealed abstract class TableConstraint
 
 case class TCPrimaryKey(columns: Seq[String]) extends TableConstraint
 
+case class TCNotNull(columns: Seq[String]) extends TableConstraint
+
+case class TCUnique(columns: Seq[String]) extends TableConstraint
+/*
+case class TCForeignKey(columns: Seq[String]) extends TableConstraint
+
+case class TCCheck(columns: Seq[String]) extends TableConstraint
+
+case class TCDefault(columns: Seq[String]) extends TableConstraint
+*/

@@ -34,7 +34,7 @@ object QueryProc {
           // use the index with longest number of common columns
           val index = indexes(0)
           val indexNums = index.columnNums
-          // contruct DBKey for index
+          // construct DBKey for index
           val valueArray = new Array[DBValue](indexNums.size)
           var placedValues = 0
           fieldsUsed.foreach {field => 
@@ -80,6 +80,14 @@ object QueryProc {
         c match {
           case TCPrimaryKey(columns) =>
             table.createIndex(tablename + "_primarykey",
+                              Index.defaultIndexType,
+                              columns)
+	  case TCNotNull(columns) =>
+            table.createIndex(tablename + "_notnull",
+                              Index.defaultIndexType,
+                              columns)
+	  case TCUnique(columns) =>
+            table.createIndex(tablename + "_unique",
                               Index.defaultIndexType,
                               columns)
         }
