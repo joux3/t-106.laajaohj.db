@@ -1,5 +1,3 @@
-# DON'T TOUCH BELOW THIS LINE
-
 def generate_init()
   puts ".echo Testing rbtree index"
   puts ".disablenoresult"

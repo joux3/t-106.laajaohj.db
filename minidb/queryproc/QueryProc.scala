@@ -103,6 +103,11 @@ object QueryProc {
       table.createIndex(realindexname, realindextype, columns)
       None
     }
+    case DropIndex(indexname, tablename) => {
+      val table = Table.find(tablename)
+      table.dropIndex(indexname)
+      None
+    }
     // XXX unimplemented:
     case BeginTransaction => None
     case CommitTransaction => None

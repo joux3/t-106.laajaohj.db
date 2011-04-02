@@ -96,11 +96,22 @@ object Testparser extends RunnableTest {
     Test.finishTestSet()
   }
 
+  def dropIndex() {
+    Test.startTestSet("dropping index")
+
+    Test.assertEquals("parsing drop index",
+      Parser.parse("DROP INDEX indexname ON tablename;"),
+      DropIndex("indexname", "tablename"))
+
+    Test.finishTestSet()
+  }
+
   def runTests() {
     createTable()
     insert()
     simpleSelect()
     createIndex()
     parseConditions()
+    dropIndex()
   }
 }

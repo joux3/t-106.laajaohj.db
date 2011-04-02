@@ -12,6 +12,7 @@ object Parser {
     val matchSelect2 = """(?i)SELECT \* FROM ([a-zA-Z0-9, ]+);?""".r
     val matchCreateIndex1 = """(?i)CREATE INDEX (\w*) ?USING (\w*) ON (\w+) \(([a-zA-Z0-9 ,]+)\);?""".r
     val matchCreateIndex2 = """(?i)CREATE INDEX (\w*) ?ON (\w+) \(([a-zA-Z0-9 ,]+)\);?""".r
+    val matchDropIndex = """(?i)DROP INDEX (\w*) ON (\w+);?""".r
     
     sql match {
       case matchCreateTable(tableName, columnDefinitions) => parseCreateTable(tableName, columnDefinitions)
@@ -20,6 +21,7 @@ object Parser {
       case matchSelect2(tableNames) => parseSelect(tableNames, "")
       case matchCreateIndex1(indexName, indexType, tableName, columns) => parseCreateIndex(tableName, columns, indexName, indexType)
       case matchCreateIndex2(indexName, tableName, columns) => parseCreateIndex(tableName, columns, indexName, "")
+      case matchDropIndex(indexName, tableName) => DropIndex(indexName, tableName)
       case _ => CommitTransaction
     }
   }
@@ -41,7 +43,7 @@ object Parser {
         case "text" => columns = columns ::: List((columnName, DBTypeText))
       }
     })
-    new CreateTable(tableName, columns, List())
+    CreateTable(tableName, columns, List())
   }
   
   // Parse queries like:
@@ -52,9 +54,9 @@ object Parser {
     columnList.foreach(column => {
       columnListFormatted = columnListFormatted ::: List(column.trim)
     })
-    new CreateIndex(indexName, indexType, tableName, columnListFormatted)
+    CreateIndex(indexName, indexType, tableName, columnListFormatted)
   }
-  
+
   // Parse queries like:
   // INSERT INTO tablename VALUES (5, "text", 3.2)
   def parseInsert(tableName: String, valueString: String): SQLExpr = {
@@ -64,8 +66,7 @@ object Parser {
     var curString = ""
     while(i < valueString.length) {
       if(valueString.charAt(i) == '"') {
-        if(insideQuotations) insideQuotations = false
-        else insideQuotations = true
+        insideQuotations = !insideQuotations
         curString += '"'
       } else if(valueString.charAt(i) == ',' && !insideQuotations) {
         values = values ::: List(curString)
@@ -78,10 +79,10 @@ object Parser {
     var valueList : List[(DBValue)] = List()
     values.foreach(value => {
       val parsedValue = parseValue(value)
-      if(parsedValue == None) valueList = valueList ::: List(new DBString(""))
+      if(parsedValue == None) valueList = valueList ::: List(DBString(""))
       else valueList = valueList ::: List(parsedValue)
     })
-    new InsertValues(tableName, List(valueList))
+    InsertValues(tableName, List(valueList))
   }
   
   // Parse queries like:
@@ -92,7 +93,7 @@ object Parser {
     tables.foreach(tableName => {
       tableList = tableList ::: List(tableName.trim)
     })
-    new SimpleSelect(tableList, parseConditions(conditions))
+    SimpleSelect(tableList, parseConditions(conditions))
   }
   
   // Parse value (e.g. int or text) from given string.
@@ -104,12 +105,11 @@ object Parser {
     val matchBoolean = """(?i)(true|false)""".r
 
     valueTrimmed match {
-      case matchText(text) => new DBString(text)
-      case matchDouble(begin, end) => new DBDouble((begin+"."+end).toDouble)
-      case matchInt(number) => new DBInt(number.toInt)
+      case matchText(text) => DBString(text)
+      case matchDouble(begin, end) => DBDouble((begin+"."+end).toDouble)
+      case matchInt(number) => DBInt(number.toInt)
       case matchBoolean(boolean) => {
-        if(boolean.toLowerCase == "true") new DBBoolean(true)
-        else new DBBoolean(false)
+        DBBoolean(boolean.toLowerCase == "true")
       }
       case _ => null
     }
@@ -185,7 +185,17 @@ object Parser {
     }
     conditionList
   }
-  
+ 
+  def getCompareCase(part: Any): CComparisonType = {
+    part match {
+      case CEquals => CEquals
+      case CLess => CLess
+      case CLessEq => CLessEq
+      case CGreater => CGreater
+      case CGreaterEq => CGreaterEq
+    }
+  }
+
   // Find comparisons from a list of conditions and move them 
   // inside CCompare-objects
   def parseComparisons(conditionList: List[(Any)]): List[(Any)] = {
@@ -193,19 +203,9 @@ object Parser {
     var parsedList : List[(Any)] = List()
     while(i < conditionList.length) {
       if(conditionList(i).isInstanceOf[CComparisonType]) {
-        conditionList(i) match {
-          // Still quite terrible
-          case CEquals =>
-            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CEquals))
-          case CLess =>
-            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CLess))
-          case CLessEq =>
-            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CLessEq))
-          case CGreater =>
-            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CGreater))
-          case CGreaterEq =>
-            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CGreaterEq))
-        }
+        parsedList = parsedList.slice(0, parsedList.length-1) ::: 
+              List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], 
+                conditionList(i+1).asInstanceOf[ValueExpr], getCompareCase(conditionList(i))))
         i+=1 // Move outside the conditionals because we check for CComparisonType already
       } else parsedList = parsedList ::: List(conditionList(i))
       i+=1

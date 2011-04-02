@@ -49,7 +49,7 @@ object MiniDB {
   // in tuples (name, desc, function)
   val commands = new HashMap[String, (String, (String) => Unit)]()
   commands += "help" -> ("lists available commands", listCommands)
-  commands += "exit" -> ("exists", x => System.exit(0))
+  commands += "exit" -> ("exits", x => System.exit(0))
   commands += "disablenoresult" -> ("stops 'no result for query' from showing", 
                                     x => MiniDB.supressNoResults = true)
   commands += "enablenoresult" -> ("allows 'no result for query' to show", 
