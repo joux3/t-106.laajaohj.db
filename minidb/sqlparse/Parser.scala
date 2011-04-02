@@ -32,15 +32,13 @@ object Parser {
     columnDefinitionParts.foreach(part => {
       var columnParts = part.trim.split(" ");
       var columnName = columnParts(0)
-      var columnType = columnParts(1)
-      if(columnType.toLowerCase() == "int") {
-        columns = columns ::: List((columnName, DBTypeInt))
-      } else if(columnType.toLowerCase() == "double") {
-        columns = columns ::: List((columnName, DBTypeDouble))
-      } else if(columnType.toLowerCase() == "bool") {
-        columns = columns ::: List((columnName, DBTypeBoolean))
-      } else if(columnType.toLowerCase() == "text") {
-        columns = columns ::: List((columnName, DBTypeText))
+      var columnType = columnParts(1).toLowerCase()
+    
+      columnType match {
+        case "int" => columns = columns ::: List((columnName, DBTypeInt))
+        case "double" => columns = columns ::: List((columnName, DBTypeDouble))
+        case "bool" => columns = columns ::: List((columnName, DBTypeBoolean))
+        case "text" => columns = columns ::: List((columnName, DBTypeText))
       }
     })
     new CreateTable(tableName, columns, List())
@@ -66,18 +64,13 @@ object Parser {
     var curString = ""
     while(i < valueString.length) {
       if(valueString.charAt(i) == '"') {
-        if(insideQuotations) {
-          insideQuotations = false
-        } else {
-          insideQuotations = true
-        }
+        if(insideQuotations) insideQuotations = false
+        else insideQuotations = true
         curString += '"'
       } else if(valueString.charAt(i) == ',' && !insideQuotations) {
         values = values ::: List(curString)
         curString = ""
-      } else {
-        curString = curString + valueString.charAt(i)
-      }
+      } else curString = curString + valueString.charAt(i)      
       i+=1
     }
     values = values ::: List(curString)
@@ -85,11 +78,8 @@ object Parser {
     var valueList : List[(DBValue)] = List()
     values.foreach(value => {
       val parsedValue = parseValue(value)
-      if(parsedValue == None) {
-        valueList = valueList ::: List(new DBString(""))
-      } else {
-        valueList = valueList ::: List(parsedValue)
-      }
+      if(parsedValue == None) valueList = valueList ::: List(new DBString(""))
+      else valueList = valueList ::: List(parsedValue)
     })
     new InsertValues(tableName, List(valueList))
   }
@@ -118,11 +108,8 @@ object Parser {
       case matchDouble(begin, end) => new DBDouble((begin+"."+end).toDouble)
       case matchInt(number) => new DBInt(number.toInt)
       case matchBoolean(boolean) => {
-        if(boolean.toLowerCase == "true") {
-          new DBBoolean(true)
-        } else {
-          new DBBoolean(false)
-        }
+        if(boolean.toLowerCase == "true") new DBBoolean(true)
+        else new DBBoolean(false)
       }
       case _ => null
     }
@@ -183,11 +170,8 @@ object Parser {
         } else if(conditions.length > i+1 && conditions.substring(i,i+2) == "<=") {
           conditionList = conditionList ::: List(CLessEq)
           i+=1
-        } else if(curchar == '<') {
-          conditionList = conditionList ::: List(CLess)
-        } else if(curchar == '>') {
-          conditionList = conditionList ::: List(CGreater)
-        }
+        } else if(curchar == '<') conditionList = conditionList ::: List(CLess)
+          else if(curchar == '>') conditionList = conditionList ::: List(CGreater)
       } else if(curchar == ' ') {
         // Skip space
       } else {
@@ -209,25 +193,21 @@ object Parser {
     var parsedList : List[(Any)] = List()
     while(i < conditionList.length) {
       if(conditionList(i).isInstanceOf[CComparisonType]) {
-        if(conditionList(i) == CEquals) {
-          parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CEquals))
-          i+=1
-        } else if(conditionList(i) == CLess) {
-          parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CLess))
-          i+=1
-        } else if(conditionList(i) == CLessEq) {
-          parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CLessEq))
-          i+=1
-        } else if(conditionList(i) == CGreater) {
-          parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CGreater))
-          i+=1
-        } else if(conditionList(i) == CGreaterEq) {
-          parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CGreaterEq))
-          i+=1
-        } 
-      } else {
-        parsedList = parsedList ::: List(conditionList(i))
-      }
+        conditionList(i) match {
+          // Still quite terrible
+          case CEquals =>
+            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CEquals))
+          case CLess =>
+            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CLess))
+          case CLessEq =>
+            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CLessEq))
+          case CGreater =>
+            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CGreater))
+          case CGreaterEq =>
+            parsedList = parsedList.slice(0, parsedList.length-1) ::: List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], conditionList(i+1).asInstanceOf[ValueExpr], CGreaterEq))
+        }
+        i+=1 // Move outside the conditionals because we check for CComparisonType already
+      } else parsedList = parsedList ::: List(conditionList(i))
       i+=1
     }
     parsedList
@@ -247,27 +227,19 @@ object Parser {
           depth+=1
         } else if(conditionList(i) == ")") {
           depth-=1
-          if(depth == 0) {
-            flatList = flatList ::: List(parseConditionsRecursive(conditionList.slice(start, i)))
-          }
-        } else {
-          if(depth == 0) flatList = flatList ::: List(conditionList(i))
-        }
+          if(depth == 0) flatList = flatList ::: List(parseConditionsRecursive(conditionList.slice(start, i)))
+        } else if(depth == 0) flatList = flatList ::: List(conditionList(i))
         i+=1
       }
       
       // Create ConditionExpr from the flattened list of expressions
-      if(flatList.length == 0) {
-        CTrue
-      } else {
+      if(flatList.length == 0) CTrue
+      else {
         var expr : ConditionExpr = flatList(0).asInstanceOf[ConditionExpr]
         var i = 1
         while(i < flatList.length) {
-          if(flatList(i) == CAnd) {
-            expr = CAnd(expr, flatList(i+1).asInstanceOf[ConditionExpr])
-          } else if(flatList(i) == COr) {
-            expr = COr(expr, flatList(i+1).asInstanceOf[ConditionExpr])
-          }
+          if(flatList(i) == CAnd) expr = CAnd(expr, flatList(i+1).asInstanceOf[ConditionExpr])
+          else if(flatList(i) == COr) expr = COr(expr, flatList(i+1).asInstanceOf[ConditionExpr])
           i+=2
         }
         expr
