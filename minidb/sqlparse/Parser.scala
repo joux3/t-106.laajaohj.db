@@ -62,17 +62,17 @@ object Parser {
   def parseInsert(tableName: String, valueString: String): SQLExpr = {
     var values : List[(String)] = List()
     var i = 0
-    var insideParentheses = false
+    var insideQuotations = false
     var curString = ""
     while(i < valueString.length) {
       if(valueString.charAt(i) == '"') {
-        if(insideParentheses) {
-          insideParentheses = false
+        if(insideQuotations) {
+          insideQuotations = false
         } else {
-          insideParentheses = true
+          insideQuotations = true
         }
         curString += '"'
-      } else if(valueString.charAt(i) == ',' && !insideParentheses) {
+      } else if(valueString.charAt(i) == ',' && !insideQuotations) {
         values = values ::: List(curString)
         curString = ""
       } else {
