@@ -4,7 +4,7 @@ import scala.collection.mutable.ArrayBuffer
 /** B+ tree index
   * handles multiples with ArrayBuffer
   * order = maximum number of children in nodes & values in leaves
-  * TODO: binary search in nodes, deletion */
+  * TODO: deletion */
 
 class BPlusTree(val order: Int) {
   if (order < 4) throw new
