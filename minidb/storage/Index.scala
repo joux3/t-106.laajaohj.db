@@ -92,6 +92,8 @@ object Index {
         new RedBlackTreeIndex(realIndexName, columnNums)
      case "avltree" =>
         new AvlTreeIndex(realIndexName, columnNums)
+     case "bplustree" =>
+        new BPlusTreeIndex(realIndexName, columnNums)
       case _ => 
         throw new IndexCreateFailed("Unknown index type: "+indexType)
     }
