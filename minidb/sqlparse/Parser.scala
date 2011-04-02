@@ -60,7 +60,28 @@ object Parser {
   // Parse queries like:
   // INSERT INTO tablename VALUES (5, "text", 3.2)
   def parseInsert(tableName: String, valueString: String): SQLExpr = {
-    val values = valueString.split(",")
+    var values : List[(String)] = List()
+    var i = 0
+    var insideQuotations = false
+    var curString = ""
+    while(i < valueString.length) {
+      if(valueString.charAt(i) == '"') {
+        if(insideQuotations) {
+          insideQuotations = false
+        } else {
+          insideQuotations = true
+        }
+        curString += '"'
+      } else if(valueString.charAt(i) == ',' && !insideQuotations) {
+        values = values ::: List(curString)
+        curString = ""
+      } else {
+        curString = curString + valueString.charAt(i)
+      }
+      i+=1
+    }
+    values = values ::: List(curString)
+    
     var valueList : List[(DBValue)] = List()
     values.foreach(value => {
       val parsedValue = parseValue(value)
@@ -87,7 +108,7 @@ object Parser {
   // Parse value (e.g. int or text) from given string.
   def parseValue(value: String): DBValue = {
     var valueTrimmed = value.trim
-    val matchText = """\"([a-zA-Z0-9 ,.]*)\" ?""".r
+    val matchText = """\"([a-zA-Z0-9 ,.\(\)]*)\" ?""".r
     val matchDouble = """([0-9]*)\.([0-9]*)""".r
     val matchInt = """([0-9]+)""".r
     val matchBoolean = """(?i)(true|false)""".r

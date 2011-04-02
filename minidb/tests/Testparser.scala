@@ -17,9 +17,17 @@ object Testparser extends RunnableTest {
 
   def insert() {
     Test.startTestSet("parsing insert into")
-    Test.assertEquals("insert one row",
+    Test.assertEquals("insert one row #1",
       Parser.parse("INSERT INTO foo VALUES (1, 2.2, \"c\", True);"),
       InsertValues("foo", List(List(DBInt(1), DBDouble(2.2), DBString("c"), DBBoolean(true)))))
+      
+    Test.assertEquals("insert one row #2",
+      Parser.parse("INSERT INTO test VALUES (1448, 50, \"Holy See (Vatican City State)\", \"Blair Moon\");"),
+      InsertValues("test", List(List(DBInt(1448), DBInt(50), DBString("Holy See (Vatican City State)"), DBString("Blair Moon")))))
+      
+    Test.assertEquals("insert one row #3",
+      Parser.parse("INSERT INTO test VALUES (2321, 97, \"Korea, Republic of\", \"Madonna Hanson\");"),
+      InsertValues("test", List(List(DBInt(2321), DBInt(97), DBString("Korea, Republic of"), DBString("Madonna Hanson")))))
 
     /*Test.assertEquals("insert four rows",
       Parser.parse("INSERT INTO foo VALUES ((\"qwer\", 3, 1.5), "+
