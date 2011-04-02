@@ -4,7 +4,7 @@ import scala.collection.mutable.ArrayBuffer
 /** B+ tree index
   * handles multiples with ArrayBuffer
   * order = maximum number of children in nodes & values in leaves
-  * TODO: deletion */
+  * TODO: binary search in nodes, deletion */
 
 class BPlusTree(val order: Int) {
   if (order < 4) throw new
@@ -14,6 +14,12 @@ class BPlusTree(val order: Int) {
   if (order % 2 != 0) throw new
                       RuntimeException("Order of BPlusTree must be divisible by 2")
   
+  object SearchType extends Enumeration {
+    type SearchType = Value
+    val Exact, Bigger, BiggerOrEqual = Value
+  }
+  import SearchType._
+  
   abstract class Node(nKeysMax: Int) {
     // in a leaf node, key is the key of the corresponding value
     // in an inner node, key is the smallest key in right subtree
@@ -21,32 +27,29 @@ class BPlusTree(val order: Int) {
     var nKeys: Int = 0
     
     def full() = (nKeys == nKeysMax)
-    
-    //** returns index of given key or -1 if not found
-    // TODO: implement binary search
-    def findIndexOfExactKey(key: DBKey) : Int = {
-      var index = 0
-      while (index < nKeys && keys(index) < key) index += 1
-      if (index < nKeys && keys(index) == key) index
-      else -1
-    }
-    
-    //** returns index of first key that is >= than given key
-    // TODO: implement binary search and join with findexact?
-    def findIndexOfBiggerOrEqualKey(key: DBKey) : Int = {
-      var index = 0
-      while (index < nKeys && keys(index) < key) index += 1
-      index
-    }
-    
-    //** returns index of first key that is > than given key
-    def findIndexOfBiggerKey(key: DBKey) : Int = {
-      var index = 0
-      while (index < nKeys && keys(index) <= key) index += 1
-      index
+
+    //** returns index of:
+    // * given key or -1 if not found (if searchType == Exact)
+    // * first key that is >= than given key (if searchType == BiggerOrEqual)
+    // * first key that is > than given key (if searchType == Bigger)
+    def findIndexOfKey(key: DBKey, searchType: SearchType) : Int = {
+      var min = 0; var max = nKeys - 1
+      while (min < max) {
+        val mid = min + (max - min) / 2
+        if (keys(mid) > key) max = mid - 1
+        else if (keys(mid) < key) min = mid + 1
+        else { min = mid; max = mid }
+      }
+      if (searchType == Bigger) {
+          if (min < nKeys && keys(min) <= key) min+1 else min
+      } else if (searchType == BiggerOrEqual) {
+          if (min < nKeys && keys(min) < key) min+1 else min
+      } else /* (searchType == Exact) */ {
+          if (min < nKeys && keys(min) == key) min else -1
+      }
     }
   }
-  
+
   class InnerNode extends Node(order-1) {
     val children = new Array[Node](order)
   }
@@ -127,22 +130,25 @@ class BPlusTree(val order: Int) {
   private def findLeafNode(key: DBKey) : LeafNode = {
     var node = root
     while (!(node.isInstanceOf[LeafNode]))
-      node = node.asInstanceOf[InnerNode].children(node.findIndexOfBiggerKey(key))
+      node = node.asInstanceOf[InnerNode].children(node.findIndexOfKey(key, Bigger))
     node.asInstanceOf[LeafNode]
   }
 
   def search(key: DBKey) : Seq[DBRow] = {
     val node = findLeafNode(key)
-    val index = node.findIndexOfExactKey(key)
+    val index = node.findIndexOfKey(key, Exact)
     if (index == -1) Seq[DBRow]() else node.values(index)
   }
 
   def searchRange(low: DBKey, high: DBKey, lowIncl: Boolean, 
                            highIncl: Boolean): Seq[DBRow] = {
+    // special case ???
+    if (low == high && (lowIncl || highIncl)) return search(low)
+    
     val result = new ArrayBuffer[DBRow]
     var node = findLeafNode(low)
-    var index = if (lowIncl) node.findIndexOfBiggerOrEqualKey(low)
-                else node.findIndexOfBiggerKey(low)
+    var index = if (lowIncl) node.findIndexOfKey(low, BiggerOrEqual)
+                else node.findIndexOfKey(low, Bigger)
     if (index >= node.nKeys) { node = node.nextLeaf; index = 0 }
     val compareF = if (highIncl) { (x: DBKey) => x<=high } else { (x: DBKey) => x<high }
     
@@ -168,7 +174,7 @@ class BPlusTree(val order: Int) {
     
     while (!node.isInstanceOf[LeafNode]) {
       val currNode = node.asInstanceOf[InnerNode]
-      val index = currNode.findIndexOfBiggerKey(key)
+      val index = currNode.findIndexOfKey(key, Bigger)
       if (!currNode.children(index).full())
         node = currNode.children(index)
       else {
@@ -179,7 +185,7 @@ class BPlusTree(val order: Int) {
     }
     
     val leafNode = node.asInstanceOf[LeafNode]
-    val insIndex = leafNode.findIndexOfBiggerOrEqualKey(key)
+    val insIndex = leafNode.findIndexOfKey(key, BiggerOrEqual)
     if (insIndex < leafNode.nKeys && leafNode.keys(insIndex) == key)
       leafNode.values(insIndex) += value
     else {
