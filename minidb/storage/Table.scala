@@ -65,6 +65,21 @@ abstract class Table(columns: Seq[(String, DBType)],
     indexes += index
   }
 
+  /** Removes the index with the given name 
+    * returns the deleted index */
+  def dropIndex(indexName: String) = {
+    val i = indexes.find {x => x.indexName == indexName }
+    i match {
+      case Some(index) => {
+        indexes -= index
+        Index.allIndexes -= index
+      }
+      case None => {
+        throw new IndexNotFound("No index named \""+indexName+"\"!")
+      }
+    }
+  }
+
   /** Checks that row has values whose types match the columns of this table */
   def checkTypes(row: DBRow) {
     if (row.size != columnTypes.size)

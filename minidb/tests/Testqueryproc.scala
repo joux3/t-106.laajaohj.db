@@ -78,10 +78,15 @@ object Testqueryproc extends RunnableTest {
     val select = SimpleSelect(Seq("foo"), CCompare(VField("", "0"), VConstant(DBInt(87)), CEquals))
     val r1 = QueryProc.processQuery(select)
     Test.assertTrue("select without index", QueryProc.filteredRowCount == 101)
-    QueryProc.processQuery(CreateIndex("", "", "foo", Seq("0")))
+    QueryProc.processQuery(CreateIndex("index", "", "foo", Seq("0")))
     val r2 = QueryProc.processQuery(select)
     Test.assertTrue("select with index", QueryProc.filteredRowCount == 1)
     Test.assertEquals("select results", r1.get.values, r2.get.values)
+    QueryProc.processQuery(DropIndex("index", "foo"))
+    val r3 = QueryProc.processQuery(select)
+    Test.assertTrue("select with removed index", QueryProc.filteredRowCount == 101)
+    Test.assertEquals("select results", r1.get.values, r2.get.values)
+
     Test.finishTestSet()
   }
 

@@ -5,6 +5,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class IndexCreateFailed(msg: String) extends QueryProcException(msg)
 class IndexSearchFailed(msg: String) extends QueryProcException(msg)
+class IndexNotFound(msg: String) extends QueryProcException(msg)
 
 /** Abstract superclass for index structures.
  * The index is a mapping from keys, i.e., the values of certain

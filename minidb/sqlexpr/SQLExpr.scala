@@ -27,6 +27,10 @@ case class CreateIndex(indexname: String,
                        tablename: String,
                        columns: Seq[String]) extends SQLExpr
 
+/** DROP INDEX indexname ON tablename */
+case class DropIndex(indexname: String,
+                     tablename: String) extends SQLExpr
+
 /** BEGIN TRANSACTION */
 case object BeginTransaction extends SQLExpr
 /** COMMIT */
