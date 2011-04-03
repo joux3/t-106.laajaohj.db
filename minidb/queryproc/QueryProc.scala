@@ -27,13 +27,22 @@ object QueryProc {
       var possibleRows: Seq[DBRow] = table.allRows
       // XXX needs tests!
       // try to find some possible indexes
-      val fieldsUsed = EvalCondition.getFieldConstantEquals(where)
+      val equalComparisons = EvalCondition.getFieldConstantEquals(where)
+      val fieldsUsed = equalComparisons._1
+      // can we safely skip filtering if we have a 100% matching index
+      // (except a full table scan at this line)
+      var needsFiltering = true
       if (!fieldsUsed.isEmpty) {
         val indexes = table.getUsableIndexes(fieldsUsed.map(_._1))
         if (!indexes.isEmpty) {
           // use the index with longest number of common columns
           val index = indexes(0)
           val indexNums = index.columnNums
+          // check if the index can be used to guarantee
+          // conditions ie. no CComparisons have been dropped
+          // and index matches the conditions
+          needsFiltering = equalComparisons._2 || 
+                           indexNums.length != fieldsUsed.length
           // construct DBKey for index
           val valueArray = new Array[DBValue](indexNums.size)
           var placedValues = 0
@@ -52,16 +61,22 @@ object QueryProc {
           } else {
             possibleRows = index.searchExact(new DBKey(valueArray))
           }
-        } 
+        }
       }
 
       filteredRowCount = 0
-      val rows = possibleRows.filter { row =>
-        filteredRowCount += 1 // avoid possible O(n) behaviour of possibleRows.size
-        EvalCondition.eval(where,
-                           table.columnNames.map{(from(0), _)},
-                           row) == DBBoolean(true) }
-      new QueryResult(table.columnNames, rows)
+      if (needsFiltering) {
+        val rows = possibleRows.filter { row =>
+        // avoid possible O(n) behaviour of possibleRows.size
+          filteredRowCount += 1 
+          EvalCondition.eval(where,
+            table.columnNames.map{(from(0), _)},
+          row) == DBBoolean(true) 
+        }
+        new QueryResult(table.columnNames, rows)
+      } else {
+        new QueryResult(table.columnNames, possibleRows)
+      }
     }
     case _ => throw new Exception("Internal error in processSelect!")
   }

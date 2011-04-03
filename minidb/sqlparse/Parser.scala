@@ -1,13 +1,16 @@
 package minidb.sqlparse
+import minidb.queryproc.QueryProcException
 import minidb.sqlexpr._
 import java.text.{NumberFormat, ParsePosition}
+
+class ParserError(msg: String) extends QueryProcException(msg)
 
 object Parser {
   // This function tries to match the sql query with the supported 
   // query types and sends it to the parser defined for that type.
   def parse(sql: String): SQLExpr = {
     val matchCreateTable = """(?i)CREATE TABLE (\w+) \(([a-zA-Z0-9 ,]*)\);?""".r
-    val matchInsert = """(?i)INSERT INTO (\w+) VALUES \(([a-zA-Z0-9 ,.\(\)\"]*)\);?""".r
+    val matchInsert = """(?i)INSERT INTO (\w+) VALUES \((.*)\);?""".r
     val matchSelect1 = """(?i)SELECT \* FROM ([a-zA-Z0-9, ]+) WHERE ([a-zA-Z0-9 ,.\"<>=\(\)]+);?""".r
     val matchSelect2 = """(?i)SELECT \* FROM ([a-zA-Z0-9, ]+);?""".r
     val matchCreateIndex1 = """(?i)CREATE INDEX (\w*) ?USING (\w*) ON (\w+) \(([a-zA-Z0-9 ,]+)\);?""".r
@@ -22,7 +25,7 @@ object Parser {
       case matchCreateIndex1(indexName, indexType, tableName, columns) => parseCreateIndex(tableName, columns, indexName, indexType)
       case matchCreateIndex2(indexName, tableName, columns) => parseCreateIndex(tableName, columns, indexName, "")
       case matchDropIndex(indexName, tableName) => DropIndex(indexName, tableName)
-      case _ => CommitTransaction
+      case _ => throw new ParserError("Unmatched query type for \""+sql+"\"!")
     }
   }
   
@@ -99,7 +102,7 @@ object Parser {
   // Parse value (e.g. int or text) from given string.
   def parseValue(value: String): DBValue = {
     var valueTrimmed = value.trim
-    val matchText = """\"([a-zA-Z0-9 ,.\(\)]*)\" ?""".r
+    val matchText = """\"([^"]*)\" ?""".r
     val matchDouble = """([0-9]*)\.([0-9]*)""".r
     val matchInt = """([0-9]+)""".r
     val matchBoolean = """(?i)(true|false)""".r
@@ -185,16 +188,6 @@ object Parser {
     }
     conditionList
   }
- 
-  def getCompareCase(part: Any): CComparisonType = {
-    part match {
-      case CEquals => CEquals
-      case CLess => CLess
-      case CLessEq => CLessEq
-      case CGreater => CGreater
-      case CGreaterEq => CGreaterEq
-    }
-  }
 
   // Find comparisons from a list of conditions and move them 
   // inside CCompare-objects
@@ -205,7 +198,7 @@ object Parser {
       if(conditionList(i).isInstanceOf[CComparisonType]) {
         parsedList = parsedList.slice(0, parsedList.length-1) ::: 
               List(CCompare(conditionList(i-1).asInstanceOf[ValueExpr], 
-                conditionList(i+1).asInstanceOf[ValueExpr], getCompareCase(conditionList(i))))
+                conditionList(i+1).asInstanceOf[ValueExpr], conditionList(i).asInstanceOf[CComparisonType]))
         i+=1 // Move outside the conditionals because we check for CComparisonType already
       } else parsedList = parsedList ::: List(conditionList(i))
       i+=1
