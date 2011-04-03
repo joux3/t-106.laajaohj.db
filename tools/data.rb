@@ -1,5 +1,4 @@
 def generate_init()
-  puts ".echo Testing rbtree index"
   puts ".disablenoresult"
   puts ".disableresults"
   puts "CREATE TABLE test (#{TABLE_TYPE})"
@@ -15,20 +14,24 @@ def generate_part(desc)
   puts ".echo ------ #{desc}"
 end
 
-def generate_search(count, where_generator)
+def generate_search(name, count, where_generator)
   puts ".echo Doing #{count} searches"
   puts ".starttiming"
   count.times {
     puts "SELECT * FROM test WHERE "+where_generator.call
   }
-  puts ".stoptiming searching"
+  puts ".stoptiming searching (#{name})"
 end
 
-def generate_index(index_type, index_columns)
+def generate_index(name, index_type, index_columns)
   puts ".echo creating index #{index_type} on (#{index_columns})"
   puts ".starttiming"
-  puts "CREATE INDEX USING #{index_type} ON test (#{index_columns});"
+  puts "CREATE INDEX #{name} USING #{index_type} ON test (#{index_columns});"
   puts ".stoptiming creating index"
+end
+
+def generate_drop_index(index_type)
+  puts "DROP INDEX #{index_type} ON test"
 end
 
 class RandomData 

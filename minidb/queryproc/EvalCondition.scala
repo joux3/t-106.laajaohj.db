@@ -48,14 +48,20 @@ object EvalCondition {
   /** Returns cases where a table field gets compared to a constant value 
       to be used when deciding which indexes to use */
   // XXX needs a better place?
-  def getFieldConstantEquals(where: ConditionExpr, results: ArrayBuffer[(VField, DBValue)]
-                            = new ArrayBuffer[(VField, DBValue)]): ArrayBuffer[(VField, DBValue)] = {
+  def getFieldConstantEquals(where: ConditionExpr, results: ArrayBuffer[(VField, DBValue)] = new ArrayBuffer[(VField, DBValue)]): (ArrayBuffer[(VField, DBValue)], Boolean) = {
+    // are we returning all the compares
+    // se the user can figure out if an index scan is enough
+    var droppedCompares = false 
     where match {
       // only go through ANDs as they can be easily transferred into index lookups
       case CAnd(c1, c2) => {
         // keep on searching 
-        getFieldConstantEquals(c1, results)
-        getFieldConstantEquals(c2, results)
+        // !!! recursive calls have to run so don't change 
+        // the order or use ||=
+        droppedCompares = 
+          getFieldConstantEquals(c1, results)._2 || droppedCompares
+        droppedCompares = 
+          getFieldConstantEquals(c2, results)._2 || droppedCompares
       }
       case CCompare(v1, v2, t) => {
         if (t == CEquals) {
@@ -67,12 +73,20 @@ object EvalCondition {
             val constant = if (v1.isInstanceOf[VConstant]) v1.asInstanceOf[VConstant] 
                            else v2.asInstanceOf[VConstant]
             results += ((field, constant.v))
+          } else {
+            droppedCompares = true
           }
+        } else {
+          droppedCompares = true
         }
       }
-      case _ => // ignore any other cases
+      case _ => {
+        // ignore any other cases
+        // but we can't guarantee they won't affect query results
+        droppedCompares = true
+      }
     }
-    results
+    (results, droppedCompares)
   }
 
   /** Evaluates the given value expression */
