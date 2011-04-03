@@ -92,45 +92,51 @@ abstract class Table(columns: Seq[(String, DBType)],
   }
   
   /** Checks that row satisfies any constraints of this table */
-  def checkConstraints(row: DBRow) {
+  def checkConstraints(row: DBRow): DBRow = {
+    var checkedRow = row
     constraints foreach { c =>
       c match {
         case TCPrimaryKey(pkcols) => {
           // checks that the PRIMARY KEY columns are
           // unique and throws new InsertFailed if not
-	  // XXX needs tests, currently a table can have MULTIPLE primary keys, this is not supported in SQL
-          pkcols foreach { col =>
-	    val colnum = columnNames.indexOf(col)
-	    allRows foreach { ac =>
-	      if (ac(colnum) == row(colnum))
-		throw new InsertFailed("PRIMARY KEY "+col+" is not unique.")  
-	     }
-	    }
-	  ()
-	   }
+	  // XXX needs tests
+          val i = indexes.find { x => x.indexName.slice(0,12) ==  "_primarykey_" }
+          val key = new DBKey(i.get.columnNums map { row(_) })
+	    if (i.get.searchExact(key) != ()) 
+	      throw new InsertFailed("Inserted rows PRIMARY KEY is not unique.")              
+          }
+        
 	case TCNotNull(nncols) => { 
 	  // checks that the values in NOT NULL columns are not NULL
 	  // if are throws new InsertFailed
 	  nncols foreach { col =>
-	    val colnum = columnNames.indexOf(col)
-	    if (row(colnum) == null)
-	      throw new InsertFailed("NOT NULL column "+col+" is NULL.")
-	    }
-	  ()
-	   }
+            val colnum = columnNames.indexOf(col)
+            if (row(colnum) == null)
+              throw new InsertFailed("NOT NULL column is NULL.")
+         }
+	}
+
 	case TCUnique(unicols) => { 
-	  unicols foreach { col =>
-	    val colnum = columnNames.indexOf(col)
-	    allRows foreach { ac =>
-	      if (ac(colnum) == row(colnum))
-		throw new InsertFailed("UNIQUE key "+col+" is not unique.")
-	     }
-	   }
-	  ()
-	   }  
-	 }
-       }
-      }
+          val i = indexes.find { x => x.indexName.slice(0,8) == "_unique_" }
+          val key = new DBKey(i.get.columnNums map { row(_) })
+	    if (i.get.searchExact(key) != ()) 	  
+	      throw new InsertFailed("Inserted rows UNIQUE key is not unique.")                         
+            }
+  
+        // sets DEFAULT keys to default value, if they are null
+        case TCDefault(defcols, defvalues) => { 
+         defcols foreach { col =>
+            val colnum = columnNames.indexOf(col)
+            if (row(colnum) == null)  
+	      checkedRow = new DBRow(checkedRow.updated(colnum, defvalues(defcols.indexOf(columnNames(colnum)))))
+           
+         }
+        }
+      }  
+     }
+    checkedRow
+  }
+  
     
   
 
@@ -141,9 +147,9 @@ abstract class Table(columns: Seq[(String, DBType)],
    */
   def insert(row: DBRow) {
     checkTypes(row)
-    checkConstraints(row)
-    doInsert(row)
-    indexes foreach { _.insert(row) }
+    val checkedRow = checkConstraints(row)
+    doInsert(checkedRow)
+    indexes foreach { _.insert(checkedRow) }
   }
 
 

@@ -94,22 +94,24 @@ object QueryProc {
       constraints foreach { c =>
         c match {
           case TCPrimaryKey(columns) =>
-            table.createIndex(tablename + "_primarykey",
-                              Index.defaultIndexType,
+            table.createIndex("_primarykey_" + tablename,
+                              "hash",
                               columns)
 	  case TCNotNull(columns) =>
-            table.createIndex(tablename + "_notnull",
-                              Index.defaultIndexType,
-                              columns)
+            ()
 	  case TCUnique(columns) =>
-            table.createIndex(tablename + "_unique",
-                              Index.defaultIndexType,
+            table.createIndex("_unique_" + tablename,
+                              "hash",
                               columns)
+          case TCDefault(columns, values) =>
+            ()
         }
       }
       None
     }
     case CreateIndex(indexname, indextype, tablename, columns) => {
+      if (indexname.head == '_')
+        throw new QueryError("User created indexnames starting with _ not allowed.")
       val realindexname =
         if (indexname != "") indexname else tablename + "_index"
       val realindextype = 
@@ -119,6 +121,8 @@ object QueryProc {
       None
     }
     case DropIndex(indexname, tablename) => {
+      if (indexname.head == '_')
+        throw new QueryError("User created indexnames starting with _ not allowed.")
       val table = Table.find(tablename)
       table.dropIndex(indexname)
       None
