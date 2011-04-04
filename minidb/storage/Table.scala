@@ -117,7 +117,7 @@ abstract class Table(columns: Seq[(String, DBType)],
 	}
 
 	case TCUnique(unicols) => { 
-          val i = indexes.find { x => x.indexName.slice(0,8) == "_unique_" }
+          val i = indexes.find { x => x.indexName contains "_unique_" + unicols.toString }
           val key = new DBKey(i.get.columnNums map { row(_) })
 	    if (i.get.searchExact(key) != ()) 	  
 	      throw new InsertFailed("Inserted rows UNIQUE key is not unique.")                         

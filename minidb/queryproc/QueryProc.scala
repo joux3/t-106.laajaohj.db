@@ -100,7 +100,7 @@ object QueryProc {
 	  case TCNotNull(columns) =>
             ()
 	  case TCUnique(columns) =>
-            table.createIndex("_unique_" + tablename,
+            table.createIndex("_unique_" + columns.toString + tablename,
                               "hash",
                               columns)
           case TCDefault(columns, values) =>
@@ -110,10 +110,10 @@ object QueryProc {
       None
     }
     case CreateIndex(indexname, indextype, tablename, columns) => {
-      if (indexname.head == '_')
-        throw new QueryError("User created indexnames starting with _ not allowed.")
       val realindexname =
         if (indexname != "") indexname else tablename + "_index"
+      if (realindexname.head == '_')
+        throw new QueryError("User created indexnames starting with _ not allowed.")
       val realindextype = 
         if (indextype != "") indextype else Index.defaultIndexType
       val table = Table.find(tablename)
