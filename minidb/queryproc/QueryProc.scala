@@ -122,7 +122,7 @@ object QueryProc {
     }
     case DropIndex(indexname, tablename) => {
       if (indexname.head == '_')
-        throw new QueryError("User created indexnames starting with _ not allowed."
+        throw new QueryError("User created indexnames starting with _ not allowed.")
       val table = Table.find(tablename)
       table.dropIndex(indexname)
       None
