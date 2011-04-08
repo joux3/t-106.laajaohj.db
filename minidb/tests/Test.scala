@@ -37,6 +37,18 @@ object Test {
     } catch { case e => Test.testFailed(description, "", e) }
   }
 
+  /** Runs a test that checks that no exceptions are thrown.
+   * The return value is ignored.
+   */
+  def assertNoException(description: String, code: =>Any) {
+    try {
+      Test.setup()
+      val dummy = code // evaluate code now
+      Test.finish()
+      Test.testPassed(description)
+    } catch { case e => Test.testFailed(description, "", e) }
+  }
+
   /** Runs a test that checks for a thrown exception.
    * Any kind of exception is acceptable.
    */
@@ -181,7 +193,8 @@ object Test {
 
     Test.startTestSet("exceptions")
     var a = Array(1,2,3)
-    Test.assertAnyException("array indexing", a(4))
+    Test.assertNoException("successful array indexing", a(2))
+    Test.assertAnyException("invalid array indexing", a(4))
     Test.finishTestSet()
 
     Test.finishAllTests()
