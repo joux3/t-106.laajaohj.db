@@ -79,23 +79,6 @@ object Testparser extends RunnableTest {
     Test.finishTestSet()
   }
   
-  def parseConditions() {
-    Test.startTestSet("parsing conditions")
-    
-    Test.assertEquals("ordinary values", 
-      Parser.conditionsToList("\"Testi\" = abc AND (12.456 <= cde) AND True"), 
-      List(VConstant(DBString("Testi")), CEquals, VField("", "abc"), CAnd, "(", VConstant(DBDouble(12.456)), CLessEq, VField("", "cde"), ")", CAnd, CTrue))
-    
-    Test.assertEquals("parsing comparisons",
-      Parser.parseComparisons(List(VConstant(DBString("Testi")), CEquals, VField("", "abc"), CAnd, "(", VConstant(DBDouble(12.456)), CLessEq, VField("", "cde"), ")", CAnd, CTrue)),
-      List(CCompare(VConstant(DBString("Testi")), VField("", "abc"), CEquals), CAnd, "(", CCompare(VConstant(DBDouble(12.456)), VField("", "cde"), CLessEq), ")", CAnd, CTrue))
-    
-    Test.assertEquals("parsing condition string to ConditionExpr",
-      Parser.parseConditions("\"Testi\" = abc AND (12.456 <= cde) AND True"),
-      CAnd(CAnd(CCompare(VConstant(DBString("Testi")), VField("", "abc"), CEquals), CCompare(VConstant(DBDouble(12.456)), VField("", "cde"), CLessEq)), CTrue))
-    Test.finishTestSet()
-  }
-
   def dropIndex() {
     Test.startTestSet("dropping index")
 
@@ -111,7 +94,6 @@ object Testparser extends RunnableTest {
     insert()
     simpleSelect()
     createIndex()
-    parseConditions()
     dropIndex()
   }
 }
