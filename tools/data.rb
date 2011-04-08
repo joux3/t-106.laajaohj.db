@@ -15,19 +15,17 @@ def generate_part(desc)
 end
 
 def generate_search(name, count, where_generator)
-  puts ".echo Doing #{count} searches"
   puts ".starttiming"
   count.times {
     puts "SELECT * FROM test WHERE "+where_generator.call
   }
-  puts ".stoptiming searching (#{name})"
+  puts ".stoptiming searching (#{name}, #{count} times)"
 end
 
 def generate_index(name, index_type, index_columns)
-  puts ".echo creating index #{index_type} on (#{index_columns})"
   puts ".starttiming"
   puts "CREATE INDEX #{name} USING #{index_type} ON test (#{index_columns});"
-  puts ".stoptiming creating index"
+  puts ".stoptiming creating index on (#{index_columns})"
 end
 
 def generate_drop_index(index_type)

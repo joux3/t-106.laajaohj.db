@@ -14,8 +14,9 @@ object MiniDB {
   // time when timing was started
   var startTime: Long = 0
 
-  def executeQuery(q: SQLExpr) {
+  def executeQuery(expr: String) {
     try {
+      val q = Parser.parse(expr)
       val result: Option[QueryResult] = QueryProc.processQuery(q)
       result match {
         case Some(r) => if (!supressResults) r.printResult
@@ -24,7 +25,7 @@ object MiniDB {
     } catch {
       case e: QueryProcException => {
         println("Query execution failed for the query:")
-        println(q.toString)
+        println(expr)
         println("The error was:")
         println(e.toString)
       }
@@ -82,10 +83,7 @@ object MiniDB {
         line.head match {
           case '.' => runCommand(line.tail)
           case '#' => // comment
-          case _ => {
-            val expr = Parser.parse(line)
-            executeQuery(expr)
-          }
+          case _ => executeQuery(line)
         }
       } 
       print(prompt)
