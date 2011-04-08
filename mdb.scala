@@ -1,7 +1,7 @@
 // THIS FILE IS NOT MEANT TO BE COMPILED!
 // Instead, you can load it into the interpreter after compiling the rest:
 //   make
-//   scala
+//   scala -cp bin
 //   :load mdb.scala
 // and execute your queries like the examples below.
 
@@ -47,4 +47,13 @@ val result3 = QueryProc.processQuery(
                         VField("", "c"),
                         CLess)))
 result3.get.printResult
+
+// DELETE FROM foo WHERE b = 5
+QueryProc.processQuery(
+  SimpleDelete("foo", CCompare(VField("","b"),
+                               VConstant(DBInt(5)),
+                               CEquals)))
+
+// SELECT * from foo  (now prints only three rows)
+QueryProc.processQuery(SimpleSelect(List("foo"), CTrue)).get.printResult
 
