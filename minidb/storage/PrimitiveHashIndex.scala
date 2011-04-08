@@ -22,5 +22,17 @@ class PrimitiveHashIndex(override val indexName: String,
       case None => theData += (key -> ArrayBuffer(data))
     }
   }
+  override def supportsDeletion = true
+  override def delete(key: DBKey, data: DBRow) {
+    theData.get(key) match {
+      case Some(v) => {
+        v -= data
+        if (v.isEmpty) // this was the last item with this key
+          theData -= key
+      }
+      case None =>
+        throw new IndexDeleteFailed("tried to delete a nonexistent row!")
+    }
+  }
 }
 

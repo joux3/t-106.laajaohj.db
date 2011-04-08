@@ -73,9 +73,9 @@ object QueryProc {
             table.columnNames.map{(from(0), _)},
           row) == DBBoolean(true) 
         }
-        new QueryResult(table.columnNames, rows)
+        new QueryResult(table, rows)
       } else {
-        new QueryResult(table.columnNames, possibleRows)
+        new QueryResult(table, possibleRows)
       }
     }
     case _ => throw new Exception("Internal error in processSelect!")
@@ -84,6 +84,13 @@ object QueryProc {
   /** Executes the given query */
   def processQuery(q: SQLExpr): Option[QueryResult] = q match {
     case SimpleSelect(_, _) => Some(processSelect(q))
+    case SimpleDelete(tablename, where) => {
+      // find the rows to be deleted by creating a SELECT query
+      val result = processSelect(SimpleSelect(List(tablename), where))
+      // and delete all results produced by this query
+      result.deleteAllRows()
+      None
+    }
     case InsertValues(tablename, values) => {
       val table = Table.find(tablename)
       values foreach { row => table insert new DBRow(row) }

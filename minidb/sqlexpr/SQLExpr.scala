@@ -10,6 +10,12 @@ sealed abstract class SQLExpr
 case class SimpleSelect(from: Seq[String],
                         where: ConditionExpr) extends SQLExpr
 
+/** A simple single-table delete: DELETE FROM from WHERE where
+ * where from is the name of a single table.
+ */
+case class SimpleDelete(tablename: String,
+                        where: ConditionExpr) extends SQLExpr
+
 /** INSERT INTO tablename VALUES values */
 case class InsertValues(tablename: String,
                         values: Seq[Seq[DBValue]]) extends SQLExpr

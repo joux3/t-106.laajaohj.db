@@ -5,6 +5,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class IndexCreateFailed(msg: String) extends QueryProcException(msg)
 class IndexSearchFailed(msg: String) extends QueryProcException(msg)
+class IndexDeleteFailed(msg: String) extends QueryProcException(msg)
 class IndexNotFound(msg: String) extends QueryProcException(msg)
 
 /** Abstract superclass for index structures.
@@ -34,6 +35,28 @@ abstract class Index(val indexName: String,
    */
   def insert(row: DBRow) {
     insert(new DBKey(columnNums map { row(_) }), row)
+  }
+  /** Does this index support deletion (delete)?
+   * Override this in the subclasses that implement the delete method.
+   * If deletion is not supported, it is done very inefficiently using
+   * rebuild.
+   */
+  def supportsDeletion: Boolean = false
+  /** Deletes a row from the index given its key.
+   * @param key the key (selected columns from data)
+   * @param data the row object to delete (currently stored in the index)
+   */
+  def delete(key: DBKey, data: DBRow) {
+    throw new IndexDeleteFailed("Internal error: tried to delete from "+
+                                "an index that does not support deletion: "+
+                                this.getClass().toString)
+  }
+  /** Deletes the given row from the index.
+   * Should usually not be overriden in subclasses (calls the other delete).
+   * @param row the row to delete
+   */
+  def delete(row: DBRow) {
+    delete(new DBKey(columnNums map { row(_) }), row)
   }
   /** Does this index support range searches (searchRange)?
    * Override this in the subclasses that implement searchRange.

@@ -95,9 +95,87 @@ object Testqueryproc extends RunnableTest {
     Test.finishTestSet()
   }
 
+  def deleteTest() {
+    Test.startTestSet("Table delete queries")
+
+    // CREATE TABLE deletetest (a INT, b TEXT);
+    QueryProc.processQuery(CreateTable("deletetest", Seq(("a", DBTypeInt), ("b", DBTypeText)), Seq()))
+
+    Test.assertNoException(
+      "delete all from empty table",
+      QueryProc.processQuery(SimpleDelete("deletetest", CTrue)))
+
+    for (i <- 0 to 100) {
+      // INSERT INTO foo VALUES (i, i.toString)
+      QueryProc.processQuery(InsertValues("deletetest", Seq(Seq(DBInt(i), DBString(i.toString)))))
+    }
+
+    Test.assertNoException(
+      "delete nothing (where false)",
+      QueryProc.processQuery(SimpleDelete("deletetest", CFalse)))
+
+    val selectall = SimpleSelect(Seq("deletetest"), CTrue)
+
+    Test.assertEquals("select all after delete nothing",
+                      QueryProc.processQuery(selectall).get.values.size,
+                      101)
+
+    Test.assertNoException(
+      "delete one item (where a=10)",
+      QueryProc.processQuery(
+        SimpleDelete("deletetest", CCompare(VField("", "a"),
+                                            VConstant(DBInt(10)),
+                                            CEquals))))
+
+    Test.assertEquals("select all after delete one",
+                      QueryProc.processQuery(selectall).get.values.length,
+                      100)
+
+    Test.assertNoException(
+      "delete more (where a>90)",
+      QueryProc.processQuery(
+        SimpleDelete("deletetest", CCompare(VField("", "a"),
+                                            VConstant(DBInt(90)),
+                                            CGreater))))
+
+    Test.assertEquals("select all after delete more",
+                      QueryProc.processQuery(selectall).get.values.length,
+                      90)
+
+    Test.assertNoException("create index after deletions",
+                           QueryProc.processQuery(
+                             CreateIndex("", "primitivehash",
+                                         "deletetest", Seq("a"))))
+
+    Test.assertNoException(
+      "delete one item with index (where a=15)",
+      QueryProc.processQuery(
+        SimpleDelete("deletetest", CCompare(VField("", "a"),
+                                            VConstant(DBInt(15)),
+                                            CEquals))))
+
+    Test.assertEquals("select all after delete one w/index",
+                      QueryProc.processQuery(selectall).get.values.length,
+                      89)
+
+    Test.assertNoException(
+      "delete many items with index (where a<8)",
+      QueryProc.processQuery(
+        SimpleDelete("deletetest", CCompare(VField("", "a"),
+                                            VConstant(DBInt(8)),
+                                            CLess))))
+
+    Test.assertEquals("select all after delete many w/index",
+                      QueryProc.processQuery(selectall).get.values.length,
+                      81)
+
+    Test.finishTestSet()
+  }
+
   def runTests() {
     evalCondition1()
     evalCondition2()
     selectTest()
+    deleteTest()
   }
 }

@@ -152,6 +152,19 @@ abstract class Table(columns: Seq[(String, DBType)],
     indexes foreach { _.insert(checkedRow) }
   }
 
+  /** Deletes a single row from this table.
+   * The given row object must be currently stored in the table.
+   * Also deletes the row from all indexes.
+   */
+  def delete(row: DBRow) {
+    doDelete(row)
+    indexes foreach { i =>
+      if (i.supportsDeletion)
+        i.delete(row) 
+      else // fall back to rebuilding the whole index
+        i.rebuild(allRows)
+    }
+  }
 
   /** Returns indexes that have atleast one of the given columns
    *  as its key
@@ -196,6 +209,9 @@ abstract class Table(columns: Seq[(String, DBType)],
    * The row has already been checked to be correct.
    */
   protected def doInsert(row: DBRow)
+
+  /** Actually deletes a row from this table. */
+  protected def doDelete(row: DBRow)
 
   /** Returns a sequence of all the rows in this table (in any order) */
   def allRows: Seq[DBRow]
