@@ -268,38 +268,106 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
     }
     
     /**
-     * Deletes all nodes with specified key
+     * Deletes row
      *  
-     * @return Returns a new valid root of avl-tree without key or 
+     * @return Returns a new valid root of avl-tree without row or 
      * itself if key is not found 
      */
-    def remove(key: DBKey) : AvlTreeNode = {
-      val newRoot = this._remove(key)
-      
-      //All nodes removed?
-      if (newRoot==null)
-        null
-      //Some nodes removed
-      else if (newRoot != this)
-      {
-        //if (this.weight - newRoot.weight > 1)
-        //  System.out.println("-! Removed:" + (this.weight - newRoot.weight))
-        newRoot.remove(key)
-      }
-      //No more nodes with search_key==key left
-      else
-        this
+    def remove(key: DBKey,row: DBRow) : AvlTreeNode = {
+      _remove(key,row)
     }
     /**
      * Internal use only.
-     * 
-     * Deletes N nodes with specified key. N is undefined.
-     * @return Returns a new root of tree with less nodes or itself if 
-     * the key is not found. The height of the new tree is original 
-     * height or original height - 1.
      */
-    private def _remove(key: DBKey) : AvlTreeNode = {
-
+    private def _remove(key: DBKey,row: DBRow) : AvlTreeNode = {
+      def reconstuctTreeWithNewRight(newRight: AvlTreeNode):AvlTreeNode =
+      {
+        //Is tree_height different?
+        if (newRight != null && 
+            newRight.tree_height == this.child_right.tree_height)
+        {
+          //No -> this node is still balanced
+          new AvlTreeNode(this.child_left,newRight,
+              this.search_key,this.value)
+        }
+        else
+        {
+          //Tree height changes => new balance factor
+          val newBalance = calcBalance(this.child_left,newRight); 
+          
+          if (math.abs(newBalance) < 2)
+          {
+            //Remains balanced
+            new AvlTreeNode(this.child_left,newRight,
+              this.search_key,this.value)
+          }
+          else
+          {
+            if (newBalance != 2) {
+              //Invalid state, new subtree height must
+              //be original_height or original_height - 1 
+              throw new AvlTreeException(
+                  "Invalid tree state in remove!" +
+                  "Tree height change < -1")
+            }
+             
+            //Tree unbalanced => Rotate tree
+            //Rotate right
+            val newSubRight = new AvlTreeNode(
+                this.child_left.child_right,newRight,
+                this.search_key,this.value)
+            val newNode = new AvlTreeNode(
+                this.child_left.child_left, newSubRight,
+                this.child_left.search_key,this.child_left.value)
+            
+            newNode
+          }
+        }
+      }
+      def reconstuctTreeWithNewLeft(newLeft: AvlTreeNode):AvlTreeNode =
+      {
+        //Is tree_height different?
+        if (newLeft != null && 
+            newLeft.tree_height == this.child_left.tree_height)
+        {
+          //No -> this node is still balanced
+          new AvlTreeNode(newLeft,this.child_right,
+              this.search_key,this.value)
+        }
+        else
+        {
+          //Tree height changes => new balance factor
+          val newBalance = calcBalance(newLeft,this.child_right); 
+          
+          if (math.abs(newBalance) < 2)
+          {
+            //Remains balanced
+            new AvlTreeNode(newLeft,this.child_right,
+              this.search_key,this.value)
+          }
+          else
+          {
+            if (newBalance != -2) {
+              //Invalid state, new subtree height must
+              //be original_height or original_height - 1 
+              throw new AvlTreeException(
+                  "Invalid tree state in remove!" +
+                  "Tree height change < -1")
+            }
+             
+            //Tree unbalanced => Rotate tree
+            //Rotate left
+            val newSubLeft = new AvlTreeNode(
+                newLeft,this.child_right.child_left,
+                this.search_key,this.value)
+            val newNode = new AvlTreeNode(
+                newSubLeft, this.child_right.child_right,
+                this.child_right.search_key,this.child_right.value)
+            
+            newNode
+          }
+        }
+      }
       //Right subtree changes
       if (this.search_key < key)
       {
@@ -310,7 +378,7 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
         }
         else
         {
-          val newRight = this.child_right._remove(key);
+          val newRight = this.child_right._remove(key,row);
           
           //Key not found
           if (newRight == this.child_right)
@@ -320,48 +388,7 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
           else
           {
             //Reconstruct tree
-                        
-            //Is tree_height different?
-            if (newRight != null && 
-                newRight.tree_height == this.child_right.tree_height)
-            {
-              //No -> this node is still balanced
-              new AvlTreeNode(this.child_left,newRight,
-                  this.search_key,this.value)
-            }
-            else
-            {
-              //Tree height changes => new balance factor
-              val newBalance = calcBalance(this.child_left,newRight); 
-              
-              if (math.abs(newBalance) < 2)
-              {
-                //Remains balanced
-                new AvlTreeNode(this.child_left,newRight,
-                  this.search_key,this.value)
-              }
-              else
-              {
-                if (newBalance != 2) {
-                  //Invalid state, new subtree height must
-                  //be original_height or original_height - 1 
-                  throw new AvlTreeException(
-                      "Invalid tree state in remove!" +
-                      "Tree height change < -1")
-                }
-                 
-                //Tree unbalanced => Rotate tree
-                //Rotate right
-                val newRight = new AvlTreeNode(
-                    this.child_left.child_right,this.child_right,
-                    this.search_key,this.value)
-                val newNode = new AvlTreeNode(
-                    this.child_left.child_left, newRight,
-                    this.child_left.search_key,this.child_left.value)
-                
-                newNode
-              }
-            }
+            reconstuctTreeWithNewRight(newRight)
           }
         }
       }
@@ -375,7 +402,7 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
         }
         else
         {
-          val newLeft = this.child_left._remove(key);
+          val newLeft = this.child_left._remove(key,row);
           
           //Key not found
           if (newLeft == this.child_left)
@@ -385,68 +412,30 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
           else
           {
             //Reconstruct tree
-                        
-            //Is tree_height different?
-            if (newLeft != null && 
-                newLeft.tree_height == this.child_left.tree_height)
-            {
-              //No -> this node is still balanced
-              new AvlTreeNode(newLeft,this.child_right,
-                  this.search_key,this.value)
-            }
-            else
-            {
-              //Tree height changes => new balance factor
-              val newBalance = calcBalance(newLeft,this.child_right); 
-              
-              if (math.abs(newBalance) < 2)
-              {
-                //Remains balanced
-                new AvlTreeNode(newLeft,this.child_right,
-                  this.search_key,this.value)
-              }
-              else
-              {
-                if (newBalance != -2) {
-                  //Invalid state, new subtree height must
-                  //be original_height or original_height - 1 
-                  throw new AvlTreeException(
-                      "Invalid tree state in remove!" +
-                      "Tree height change < -1")
-                }
-                 
-                //Tree unbalanced => Rotate tree
-                //Rotate left
-                val newLeft = new AvlTreeNode(
-                    this.child_left,this.child_right.child_left,
-                    this.search_key,this.value)
-                val newNode = new AvlTreeNode(
-                    newLeft, this.child_right.child_right,
-                    this.child_right.search_key,this.child_right.value)
-                
-                newNode
-              }
-            }
+            reconstuctTreeWithNewLeft(newLeft)
           }
         }
       }
       //key == search_key
       else
-      {
-        //No children
-        if (this.child_left == null && this.child_right == null)
-          null
-        //One child
-        else if (this.child_left == null && this.child_right != null)
-          this.child_right
-        else if (this.child_left != null && this.child_right == null)
-          this.child_left
-        //2 children
-        else
-        {
-          //Bad design.. fix later
-          def removeThisNode() =
+      {         
+        //Remove this node
+        if (this.value == row) {
+          //No children
+          if (this.child_left == null && this.child_right == null)
+            null
+          //One child
+          else if (this.child_left == null && this.child_right != null)
+            this.child_right
+          else if (this.child_left != null && this.child_right == null)
+            this.child_left
+          //2 children
+          else
           {
+            //Remove this node
+            
+            //This function does not return predecessor. this function finds greatest
+            //node of the tree, and removes it returning removed node and new tree
             def getPredecessor(node: AvlTreeNode) : (AvlTreeNode,AvlTreeNode)= {
               if (node.child_right != null)
               {
@@ -464,16 +453,34 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
                 
                 if (newBalance == 2)
                 {
-                  //Tree unbalanced => Rotate tree
-                  //Rotate right
-                  val returnNewRight = new AvlTreeNode(
-                      node.child_left.child_right,newRight,
-                      node.search_key,node.value)
-                  
-                  (predecessor, 
-                      new AvlTreeNode(
-                      node.child_left.child_left, returnNewRight,
-                      node.child_left.search_key,this.child_left.value))
+                  if (node.child_left.balanceFactor >= 0)
+                  {
+                    //Tree unbalanced => Rotate tree
+                    //Rotate right
+                    val returnNewRight = new AvlTreeNode(
+                        node.child_left.child_right,newRight,
+                        node.search_key,node.value)
+                    
+                    (predecessor, 
+                        new AvlTreeNode(
+                        node.child_left.child_left, returnNewRight,
+                        node.child_left.search_key,node.child_left.value))
+                  }
+                  else
+                  {
+                    //Rotate left-right
+                    val rotatedLeft =
+                      new AvlTreeNode(node.child_left.child_left,node.child_left.child_right.child_left,
+                          node.child_left.search_key,node.child_left.value)
+                    val rotatedRight =
+                      new AvlTreeNode(node.child_left.child_right.child_right,newRight,
+                          node.search_key,node.value)
+                    val newRoot = 
+                      new AvlTreeNode(rotatedLeft,rotatedRight,
+                          node.child_left.child_right.search_key,node.child_left.child_right.value)
+                    
+                    (predecessor, newRoot)
+                  }
                 }
                 else
                 {
@@ -485,6 +492,7 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
                 (node,node.child_left)
               }
             }
+            //Same as above
             def getSuccessor(node: AvlTreeNode) : (AvlTreeNode,AvlTreeNode)= {
               if (node.child_left != null)
               {
@@ -502,14 +510,32 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
                 
                 if (newBalance == -2)
                 {
-                  //Tree unbalanced => Rotate tree
-                  val returnNewLeft = new AvlTreeNode(
-                      newLeft,node.child_right.child_left,
-                      node.search_key,node.value)
-                  (predecessor, 
-                      new AvlTreeNode(
-                      returnNewLeft, node.child_right.child_right,
-                      node.child_right.search_key,node.child_right.value))
+                  if (node.child_left.balanceFactor <= 0)
+                  {
+                    //Tree unbalanced => Rotate tree
+                    val returnNewLeft = new AvlTreeNode(
+                        newLeft,node.child_right.child_left,
+                        node.search_key,node.value)
+                    (predecessor, 
+                        new AvlTreeNode(
+                        returnNewLeft, node.child_right.child_right,
+                        node.child_right.search_key,node.child_right.value))
+                  }
+                  else
+                  {
+                    //Rotate right-left
+                    val rotatedLeft = 
+                      new AvlTreeNode(newLeft,node.child_right.child_left.child_left,
+                            node.search_key,node.value)
+                    val rotatedRight = 
+                      new AvlTreeNode(node.child_right.child_left.child_right,node.child_right.child_right,
+                            node.child_right.search_key,node.child_right.value)
+                    val newRoot =
+                      new AvlTreeNode(rotatedLeft,rotatedRight,
+                            node.child_right.child_left.search_key,node.child_right.child_left.value)
+                    
+                    (predecessor, newRoot)
+                  }
                 }
                 else
                 {
@@ -591,83 +617,38 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
               }
             }
           }
-          
-          //Check the larger child first => more likely to stay balanced 
-          if (this.balanceFactor == 1)
-          {
-            //Check subtrees, left first
-            val newLeft = this.child_left._remove(key);
-
-          
-            //Found something
-            if (newLeft != this.child_left)
-            {
-              val newRight = 
-                //Subtree height changed
-                if (calcTreeHeight(newLeft) != this.child_left.tree_height)
-                {
-                  //Removing from right cannot unbalance this node
-                  this.child_right._remove(key);
-                }
-                else
-                {
-                  //Not removing from right, avoiding rotations
-                  this.child_right
-                }
-              
-              new AvlTreeNode(newLeft,newRight,this.search_key,this.value)
-            }
-            //No items removed in left
+        }
+        else  {
+          // Trying to delete node with equal key, but different row
+          // wanted row could be in left or right subtree
+          val newLeft = 
+            if (this.child_left == null)
+              null
             else
-            {
-              removeThisNode()
-            }
-          }
-          else if (this.balanceFactor == -1)
+              this.child_right._remove(key,row)
+          
+          //Is the row in the left branch?
+          if (newLeft != this.child_left)
           {
-            //Check subtrees, right first
-            val newRight = this.child_right._remove(key);
-            
-            //Found something
+            //It is
+            reconstuctTreeWithNewLeft(newLeft)
+          }
+          else
+          {
+            //Is row in right branch?
+            val newRight =
+              if (this.child_right == null)
+                null
+              else
+                this.child_right._remove(key,row)
+                
             if (newRight != this.child_right)
             {
-              val newLeft = 
-                //Subtree height changed
-                if (calcTreeHeight(newRight) != this.child_right.tree_height)
-                {
-                  //Removing from left cannot unbalance this node
-                  this.child_left._remove(key);
-                }
-                else
-                {
-                  //Not removing from left, avoiding rotations
-                  this.child_left
-                }
-              
-              new AvlTreeNode(newLeft,newRight,this.search_key,this.value)
+              //It is
+              reconstuctTreeWithNewRight(newRight)
             }
-            //No items removed in right
             else
-            {
-              removeThisNode()
-            }
-          }
-          else //this.balanceFactor == 0
-          {
-            //Check both subtrees
-            val newLeft = this.child_left._remove(key);
-            val newRight = this.child_right._remove(key);
-            
-            //Found something
-            if (newLeft != this.child_left || newRight != this.child_right)
-            {
-              new AvlTreeNode(newLeft,newRight,this.search_key,this.value)
-            }
-            //No items removed
-            else
-            {
-              removeThisNode()
-            }
+              this //row was not found
           }
         }
       }
@@ -686,9 +667,17 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
   def clear() = {
     root = null
   }
-  override def delete(key: DBKey) = {
+  override def delete(key: DBKey, data: DBRow) = {
     if (root != null)
-      root = root.remove(key)
+    {
+      val newroot = root.remove(key, data)
+      
+      //Tree didn't change
+      if (root == newroot)
+        throw new IndexDeleteFailed("tried to delete a nonexistent row!")
+      
+      root = newroot;
+    }
   }
   def insert(key: DBKey, data: DBRow) = {
     if (root == null)
@@ -699,7 +688,7 @@ class AvlTreeIndex(override val indexName: String, columnNums: Seq[Int])
  
 
   override def supportsRangeSearch: Boolean = true
-  override def supportsDelete: Boolean = false // XXX fix me by implementing delete(key, data)
+  override def supportsDelete: Boolean = true
 
   override def searchRange(low: DBKey,
     high: DBKey,
