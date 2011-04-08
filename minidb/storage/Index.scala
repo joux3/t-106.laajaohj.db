@@ -41,7 +41,7 @@ abstract class Index(val indexName: String,
    * If deletion is not supported, it is done very inefficiently using
    * rebuild.
    */
-  def supportsDeletion: Boolean = false
+  def supportsDelete: Boolean = false
   /** Deletes a row from the index given its key.
    * @param key the key (selected columns from data)
    * @param data the row object to delete (currently stored in the index)
@@ -57,6 +57,17 @@ abstract class Index(val indexName: String,
    */
   def delete(row: DBRow) {
     delete(new DBKey(columnNums map { row(_) }), row)
+  }
+  /** Deletes all rows with the given key from the index.
+   * Currently only used in Testindex.
+   * @param key the key to delete
+   */
+  def delete(key: DBKey) {
+    // map with identity to make a copy of the result, so that the
+    // result of searchExact does not change while the deletions are
+    // done (Seq.clone() is protected for some reason)
+    val rows = searchExact(key).map {x=>x}
+    rows foreach { row => delete(key, row) }
   }
   /** Does this index support range searches (searchRange)?
    * Override this in the subclasses that implement searchRange.

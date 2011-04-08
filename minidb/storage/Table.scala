@@ -159,7 +159,7 @@ abstract class Table(columns: Seq[(String, DBType)],
   def delete(row: DBRow) {
     doDelete(row)
     indexes foreach { i =>
-      if (i.supportsDeletion)
+      if (i.supportsDelete)
         i.delete(row) 
       else // fall back to rebuilding the whole index
         i.rebuild(allRows)

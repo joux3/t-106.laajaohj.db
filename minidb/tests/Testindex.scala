@@ -178,6 +178,144 @@ object Testindex extends RunnableTest {
     
     Test.finishTestSet()
   }
+  def deleteTest(index: Index)
+  {    
+    def testUnique() = {
+      val TEST_SIZE = 10240;
+      
+      //Populate index
+      index.clear();
+      for (x <- (0 to TEST_SIZE)){
+        index.insert(new DBRow(Seq(DBInt(x))))
+      }
+      
+      val testVals = List(10240,0,6,10,23,8000) 
+      
+      for (x <- testVals)
+      {
+        Test.assertEquals("Remove unique (before) ",
+            index.searchExact(new DBKey(Seq(DBInt(x)))).size,1)
+        index.delete(new DBKey(Seq(DBInt(x))))
+        Test.assertEquals("Remove unique (after) ",
+            index.searchExact(new DBKey(Seq(DBInt(x)))).size,0)
+      }
+    }
+    def testAll() = {
+      val TEST_SIZE = 10240;
+      
+      //Populate index
+      index.clear();
+      for (x <- (0 to TEST_SIZE)){
+        index.insert(new DBRow(Seq(DBInt(6))))
+      }
+      
+      Test.assertEquals("Remove all (before) ",
+          index.searchExact(new DBKey(Seq(DBInt(6)))).size,TEST_SIZE+1)
+      index.delete(new DBKey(Seq(DBInt(6))))
+      Test.assertEquals("Remove all (after) ",
+          index.searchExact(new DBKey(Seq(DBInt(6)))).size,0)
+    }
+    def testLessThanMedian() = {
+      val TEST_SIZE = 3000;
+      
+      //Populate index
+      index.clear();
+      index.insert(new DBRow(Seq(DBInt(7))))
+      for (x <- (0 to TEST_SIZE)){
+        index.insert(new DBRow(Seq(DBInt(6))))
+      }
+      for (x <- (0 to TEST_SIZE)){
+        index.insert(new DBRow(Seq(DBInt(8))))
+      }
+      
+      Test.assertEquals("Remove half (x<median)(before) ",
+          index.searchExact(new DBKey(Seq(DBInt(6)))).size,TEST_SIZE+1)
+      index.delete(new DBKey(Seq(DBInt(6))))
+      Test.assertEquals("Remove half (x<median)(after) ",
+          index.searchExact(new DBKey(Seq(DBInt(6)))).size,0)
+      Test.assertEquals("Remove half (x<median)(check dataloss) ",
+          index.searchExact(new DBKey(Seq(DBInt(7)))).size,1)
+      Test.assertEquals("Remove half (x<median)(check dataloss) ",
+          index.searchExact(new DBKey(Seq(DBInt(8)))).size,TEST_SIZE+1)
+    }
+    def testGreaterThanMedian() = {
+      val TEST_SIZE = 3000;
+      
+      //Populate index
+      index.clear();
+      index.insert(new DBRow(Seq(DBInt(7))))
+      for (x <- (0 to TEST_SIZE)){
+        index.insert(new DBRow(Seq(DBInt(6))))
+      }
+      for (x <- (0 to TEST_SIZE)){
+        index.insert(new DBRow(Seq(DBInt(8))))
+      }
+      
+      index.delete(new DBKey(Seq(DBInt(8))))
+      Test.assertEquals("Remove half (x>median)",
+          index.searchExact(new DBKey(Seq(DBInt(8)))).size,0)
+      Test.assertEquals("Remove half (x>median)(check dataloss) ",
+          index.searchExact(new DBKey(Seq(DBInt(7)))).size,1)
+      Test.assertEquals("Remove half (x>median)(check dataloss) ",
+          index.searchExact(new DBKey(Seq(DBInt(6)))).size,TEST_SIZE+1)
+    }
+    def testMedian() = {
+      val TEST_SIZE = 3000;
+      
+      //Populate index
+      index.clear();
+      index.insert(new DBRow(Seq(DBInt(7))))
+      for (x <- (0 to TEST_SIZE)){
+        index.insert(new DBRow(Seq(DBInt(6))))
+      }
+      for (x <- (0 to TEST_SIZE)){
+        index.insert(new DBRow(Seq(DBInt(8))))
+      }
+      
+      index.delete(new DBKey(Seq(DBInt(7))))
+      Test.assertEquals("Remove median",
+          index.searchExact(new DBKey(Seq(DBInt(7)))).size,0)
+      Test.assertEquals("Remove median (check dataloss) ",
+          index.searchExact(new DBKey(Seq(DBInt(8)))).size,TEST_SIZE+1)
+      Test.assertEquals("Remove median (check dataloss) ",
+          index.searchExact(new DBKey(Seq(DBInt(6)))).size,TEST_SIZE+1)
+    }
+    def testNonExistent()
+    {
+      val TEST_SIZE = 3000;
+      
+      //Populate index (only even numbers)
+      index.clear();
+      for (x <- (0 to TEST_SIZE)){
+        index.insert(new DBRow(Seq(DBInt(2 * x))))
+      }
+      
+      val testVals = List(-2,7,831,TEST_SIZE-1,TEST_SIZE+1)
+      
+      for (x <- testVals) { 
+        index.delete(new DBKey(Seq(DBInt(x))))
+      }
+      
+      //non-existent
+      for (x <- testVals) {
+        Test.assertEquals("Remove non-existent",
+          index.searchExact(new DBKey(Seq(DBInt(x)))).size,0)
+      }
+      for (x <- (0 to TEST_SIZE)){
+        Test.assertEquals("Remove non-existent (check dataloss)",
+          index.searchExact(new DBKey(Seq(DBInt(2 * x)))).size,1)
+      }
+    }
+        
+    Test.startTestSet(index.indexName + ": remove test")
+    testUnique()
+    testAll()
+    testLessThanMedian()
+    testGreaterThanMedian()
+    testMedian()
+    testNonExistent() //nonexistent
+    Test.finishTestSet()
+  }
   
   def testIndex(factory: () => (Index))
   {
@@ -188,6 +326,10 @@ object Testindex extends RunnableTest {
     if (factory().supportsRangeSearch)
     {
       simpleRangeTest(factory())
+    }
+    if (factory().supportsDelete)
+    {
+      deleteTest(factory())
     }
   }
   def runTests()

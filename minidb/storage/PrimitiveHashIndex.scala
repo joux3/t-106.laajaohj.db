@@ -22,7 +22,7 @@ class PrimitiveHashIndex(override val indexName: String,
       case None => theData += (key -> ArrayBuffer(data))
     }
   }
-  override def supportsDeletion = true
+  override def supportsDelete = true
   override def delete(key: DBKey, data: DBRow) {
     theData.get(key) match {
       case Some(v) => {
