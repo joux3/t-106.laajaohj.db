@@ -58,8 +58,11 @@ object Parser extends RegexParsers {
   def dropIndex = "(?i)drop index".r ~> identifier ~ "(?i)on".r ~ identifier ^^ {
     case l ~ _ ~ r => DropIndex(l, r)
   }
+  def delete = "(?i)delete from".r ~> identifier ~ opt("(?i)where".r ~> conditions) ^^ {
+    case l ~ r => SimpleDelete(l, r.getOrElse(CTrue))
+  }
 
-  def statement = (createTable | insert | select | createIndex | createIndex2 | dropIndex) <~ opt(";") | err("Unknown command")
+  def statement = (createTable | insert | select | createIndex | createIndex2 | dropIndex | delete) <~ opt(";") | err("Unknown command")
 
   def parse(sql: String): SQLExpr = {
     parseAll(statement, sql) match {

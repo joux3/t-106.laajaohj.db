@@ -88,6 +88,13 @@ object Testparser extends RunnableTest {
 
     Test.finishTestSet()
   }
+  
+  def delete() {
+    Test.startTestSet("parsing delete statements")
+    Test.assertEquals("delete with multiple where statements",
+      Parser.parse("DELETE FROM abc WHERE a > 3 AND b <= 5"),
+      SimpleDelete("abc", CAnd(CCompare(VField("","a"), VConstant(DBInt(3)), CGreater), CCompare(VField("", "b"), VConstant(DBInt(5)), CLessEq))))
+  }
 
   def runTests() {
     createTable()
@@ -95,5 +102,6 @@ object Testparser extends RunnableTest {
     simpleSelect()
     createIndex()
     dropIndex()
+    delete()
   }
 }
