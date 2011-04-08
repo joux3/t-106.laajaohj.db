@@ -6,6 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 class IndexCreateFailed(msg: String) extends QueryProcException(msg)
 class IndexSearchFailed(msg: String) extends QueryProcException(msg)
 class IndexNotFound(msg: String) extends QueryProcException(msg)
+class IndexDeleteFailed(msg: String) extends QueryProcException(msg)
 
 /** Abstract superclass for index structures.
  * The index is a mapping from keys, i.e., the values of certain
@@ -27,6 +28,11 @@ abstract class Index(val indexName: String,
    * @param key the key (selected columns from data)
    * @param data the row object
    */
+  /** Deletes the rows with given key from the index
+   * @param key the key of the rows to be deleted
+   */
+  def delete(key: DBKey):Unit =
+    throw new IndexDeleteFailed("Delete is not supported!")
   def insert(key: DBKey, data: DBRow)
   /** Inserts the given row into the index.
    * Should usually not be overriden in subclasses (calls the other insert).
@@ -35,6 +41,10 @@ abstract class Index(val indexName: String,
   def insert(row: DBRow) {
     insert(new DBKey(columnNums map { row(_) }), row)
   }
+  /** Does this index support deleting rows (delete)?
+   * Override this in the subclasses that implement delete.
+   */
+  def supportsDelete: Boolean = false
   /** Does this index support range searches (searchRange)?
    * Override this in the subclasses that implement searchRange.
    */

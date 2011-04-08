@@ -16,11 +16,15 @@ class PrimitiveHashIndex(override val indexName: String,
   def clear() {
     theData.clear()
   }
+  override def delete(key: DBKey) = {
+    theData.remove(key)
+  }
   def insert(key: DBKey, data: DBRow) {
     theData.get(key) match {
       case Some(v) => v += data
       case None => theData += (key -> ArrayBuffer(data))
     }
   }
+  override def supportsDelete: Boolean = true
 }
 
