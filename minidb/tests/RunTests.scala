@@ -17,7 +17,8 @@ object RunTests {
         ("rbtreeindex" -> TestRBTreeIndex),
         ("index" -> Testindex),
         ("hashindex" -> TestHashIndex),
-        ("testtable" -> TestTable))
+        ("testtable" -> TestTable),
+        ("journal" -> TestJournal))
 
   def main(args: Array[String]) {
     val selectedCategories =

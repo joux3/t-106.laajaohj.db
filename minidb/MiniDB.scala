@@ -1,4 +1,6 @@
 package minidb
+import minidb.journal.Journal
+import minidb.storage.Table
 import minidb.sqlparse.Parser
 import minidb.sqlexpr.SQLExpr
 import minidb.queryproc.QueryProc
@@ -18,6 +20,7 @@ object MiniDB {
     try {
       val q = Parser.parse(expr)
       val result: Option[QueryResult] = QueryProc.processQuery(q)
+	  Journal.reportCommand(expr,q)
       result match {
         case Some(r) => if (!supressResults) r.printResult
         case None => if (!supressNoResults )println("(no result for query)")
@@ -50,7 +53,7 @@ object MiniDB {
   // in tuples (name, desc, function)
   val commands = new HashMap[String, (String, (String) => Unit)]()
   commands += "help" -> ("lists available commands", listCommands)
-  commands += "exit" -> ("exits", x => System.exit(0))
+  commands += "exit" -> ("exits", x => exit)
   commands += "disablenoresult" -> ("stops 'no result for query' from showing", 
                                     x => MiniDB.supressNoResults = true)
   commands += "enablenoresult" -> ("allows 'no result for query' to show", 
@@ -74,6 +77,8 @@ object MiniDB {
 
   def main(args: Array[String]) {
     println("MiniDB started")
+	Table.loadFromFile
+	Journal.loadTransactionFromFile
     val (prompt, cmdsource) =
       if (args.size == 0) ("> ", io.Source.stdin)
       else ("", io.Source.fromFile(args(0)))
@@ -88,6 +93,13 @@ object MiniDB {
       } 
       print(prompt)
     }
+  }
+  
+  def exit(){
+	//If transaction is not active, save database to file
+	//Journal will take care of this is transaction is active
+	if(!Journal.transactionActive) Table.saveToFile
+	System.exit(0)
   }
 }
 

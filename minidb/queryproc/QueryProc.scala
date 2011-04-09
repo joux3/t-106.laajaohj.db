@@ -1,4 +1,5 @@
 package minidb.queryproc
+import minidb.journal.Journal
 import minidb.sqlexpr._
 import minidb.storage.Table
 import minidb.storage.DBRow
@@ -134,9 +135,8 @@ object QueryProc {
       table.dropIndex(indexname)
       None
     }
-    // XXX unimplemented:
-    case BeginTransaction => None
-    case CommitTransaction => None
-    case RollbackTransaction => None
+    case BeginTransaction => {Journal.beginTransaction; None}
+    case CommitTransaction => {Journal.commitTransaction; None}
+    case RollbackTransaction => {Journal.rollbackTransaction; None}
   }
 }
