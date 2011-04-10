@@ -20,10 +20,10 @@ object MiniDB {
     try {
       val q = Parser.parse(expr)
       val result: Option[QueryResult] = QueryProc.processQuery(q)
-	  Journal.reportCommand(expr,q)
+      Journal.reportCommand(expr,q)
       result match {
         case Some(r) => if (!supressResults) r.printResult
-        case None => if (!supressNoResults )println("(no result for query)")
+        case None => if (!supressNoResults) println("(no result for query)")
       }
     } catch {
       case e: QueryProcException => {
@@ -96,10 +96,10 @@ object MiniDB {
   }
   
   def exit(){
-	//If transaction is not active, save database to file
-	//Journal will take care of this is transaction is active
-	if(!Journal.transactionActive) Table.saveToFile
-	System.exit(0)
+    //If transaction is not active, save database to file
+    //Journal will take care of this is transaction is active
+    if(!Journal.transactionActive) Table.saveToFile
+    System.exit(0)
   }
 }
 

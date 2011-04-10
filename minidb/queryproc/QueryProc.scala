@@ -105,14 +105,11 @@ object QueryProc {
             table.createIndex("_primarykey_" + tablename,
                               "hash",
                               columns)
-	  case TCNotNull(columns) =>
-            ()
 	  case TCUnique(columns) =>
             table.createIndex("_unique_" + columns.toString + tablename,
                               "hash",
                               columns)
-          case TCDefault(columns, values) =>
-            ()
+          case _ =>
         }
       }
       None

@@ -101,8 +101,8 @@ case class TCNotNull(columns: Seq[String]) extends TableConstraint
 case class TCUnique(columns: Seq[String]) extends TableConstraint
 
 case class TCDefault(columns: Seq[String], values: Seq[DBValue]) extends TableConstraint
+
+case class TCCheck(conditions: ConditionExpr) extends TableConstraint
 /*
 case class TCForeignKey(columns: Seq[String]) extends TableConstraint
-
-case class TCCheck(columns: Seq[String], conditions: Seq[]) extends TableConstraint
 */

@@ -175,7 +175,7 @@ object Testqueryproc extends RunnableTest {
     Test.startTestSet("Testing constraints")
 
     QueryProc.processQuery(CreateTable("constraints", Seq(("A", DBTypeInt), ("B", DBTypeText), ("C", DBTypeDouble), ("D", DBTypeInt)), 
-                        Seq(TCPrimaryKey(List("A","C")), TCUnique(List("D")), TCDefault(List("B"),List(DBString("default"))), TCNotNull(List("D")))))
+                        Seq(TCPrimaryKey(List("A","C")), TCUnique(List("D")), TCDefault(List("B"),List(DBString("default"))), TCNotNull(List("D")), TCCheck(CCompare(VField("", "A"), VConstant(DBInt(10)), CLess)))))
 
     // NOT NULL and DEFAULT not tested thoroughly, as NULL values currently not supported by DBValue
     
@@ -189,6 +189,9 @@ object Testqueryproc extends RunnableTest {
     
     Test.assertAnyException("Try to insert row with not UNIQUE column",
       QueryProc.processQuery(InsertValues("constraints", Seq(Seq(DBInt(6), DBString("test"), DBDouble(4.5), DBInt(3))))))
+
+    Test.assertAnyException("Try to insert row that breaks CHECK column", 
+      QueryProc.processQuery(InsertValues("constraints", Seq(Seq(DBInt(55), DBString("testaaa"), DBDouble(842), DBInt(392))))))
 
     QueryProc.processQuery(CreateTable("constraints_2", Seq(("A", DBTypeInt), ("B", DBTypeText), ("C", DBTypeDouble), ("D", DBTypeInt), ("E", DBTypeInt),("F", DBTypeDouble)), Seq(TCPrimaryKey(List("A")), TCUnique(List("B","D")), TCUnique(List("C")), TCPrimaryKey(List("F")))))
 

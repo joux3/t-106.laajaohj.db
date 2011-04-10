@@ -12,6 +12,14 @@ object Testparser extends RunnableTest {
                  ("b", DBTypeInt),
                  ("c", DBTypeDouble)),
             List()))
+    Test.assertEquals("simple table with constraints",
+      Parser.parse("CREATE TABLE foo (a TEXT, b INT, c DOUBLE, PRIMARY KEY (a, c), unique (b), check (a=0 or b=3));"),
+      CreateTable("foo",
+            List(("a", DBTypeText),
+                 ("b", DBTypeInt),
+                 ("c", DBTypeDouble)),
+            List(TCPrimaryKey(List("a", "c")), TCUnique(List("b")), TCCheck(COr(CCompare(VField("", "a"), VConstant(DBInt(0)), CEquals), CCompare(VField("", "b"), VConstant(DBInt(3)), CEquals))))))
+
     Test.finishTestSet()
   }
 
@@ -92,8 +100,17 @@ object Testparser extends RunnableTest {
   def delete() {
     Test.startTestSet("parsing delete statements")
     Test.assertEquals("delete with multiple where statements",
-      Parser.parse("DELETE FROM abc WHERE a > 3 AND b <= 5"),
+    Parser.parse("DELETE FROM abc WHERE a > 3 AND b <= 5"),
       SimpleDelete("abc", CAnd(CCompare(VField("","a"), VConstant(DBInt(3)), CGreater), CCompare(VField("", "b"), VConstant(DBInt(5)), CLessEq))))
+    Test.finishTestSet()
+  }
+
+  def transactions() {
+    Test.startTestSet("parsing transaction statements")
+    Test.assertEquals("begin transaction", Parser.parse("begin transaction"), BeginTransaction)
+    Test.assertEquals("commit transaction", Parser.parse("commit transaction"), CommitTransaction)
+    Test.assertEquals("rollback transaction", Parser.parse("rollback transaction"), RollbackTransaction)
+    Test.finishTestSet()
   }
 
   def runTests() {
@@ -103,5 +120,6 @@ object Testparser extends RunnableTest {
     createIndex()
     dropIndex()
     delete()
+    transactions()
   }
 }

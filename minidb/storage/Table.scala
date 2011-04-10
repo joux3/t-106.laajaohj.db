@@ -1,5 +1,6 @@
 package minidb.storage
 import minidb.sqlexpr._
+import minidb.queryproc.EvalCondition
 import minidb.queryproc.QueryProcException
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
@@ -101,11 +102,9 @@ abstract class Table(columns: Seq[(String, DBType)],
           // unique and throws new InsertFailed if not
           val i = indexes.find { x => x.indexName.startsWith("_primarykey_") }
           val key = new DBKey(i.get.columnNums map { row(_) })
-	    if (!i.get.searchExact(key).isEmpty) 
-	      throw new InsertFailed("Inserted rows PRIMARY KEY is not unique.")              
-            }
-          
-        
+          if (!i.get.searchExact(key).isEmpty) 
+            throw new InsertFailed("Inserted rows PRIMARY KEY is not unique.")              
+        } 
 	case TCNotNull(nncols) => { 
 	  // checks that the values in NOT NULL columns are not NULL
 	  // if are throws new InsertFailed
@@ -113,26 +112,30 @@ abstract class Table(columns: Seq[(String, DBType)],
             val colnum = columnNames.indexOf(col)
             if (row(colnum) == null)
               throw new InsertFailed("NOT NULL column is NULL.")
-         }
+          }
 	}
 
 	case TCUnique(unicols) => { 
           val i = indexes.find { x => x.indexName.startsWith("_unique_" + unicols.toString) }
           val key = new DBKey(i.get.columnNums map { row(_) })
-	    if (!i.get.searchExact(key).isEmpty) 	  
-	      throw new InsertFailed("Inserted rows UNIQUE key is not unique.")                         
-            }
+	  if (!i.get.searchExact(key).isEmpty) 	  
+	    throw new InsertFailed("Inserted rows UNIQUE key is not unique.")                         
+        }
   
         // sets DEFAULT keys to default value, if they are null
         case TCDefault(defcols, defvalues) => { 
-         defcols foreach { col =>
+          defcols foreach { col =>
             val colnum = columnNames.indexOf(col)
             if (row(colnum) == null)  
 	      checkedRow = new DBRow(checkedRow.updated(colnum, defvalues(defcols.indexOf(columnNames(colnum)))))           
-         }
-        }    
+          }
+        }
+        case TCCheck(conditions) => {
+          if (EvalCondition.eval(conditions, columnNames.map{("", _)}, row) != DBBoolean(true))
+            throw new InsertFailed("Inserted row doesn't fulfill CHECK constraint.")
+        }
       }  
-     }
+    }
     checkedRow
   }
   
