@@ -171,11 +171,47 @@ object Testqueryproc extends RunnableTest {
 
     Test.finishTestSet()
   }
+  def testConstraints() { 
+    Test.startTestSet("Testing constraints")
+
+    QueryProc.processQuery(CreateTable("constraints", Seq(("A", DBTypeInt), ("B", DBTypeText), ("C", DBTypeDouble), ("D", DBTypeInt)), 
+                        Seq(TCPrimaryKey(List("A","C")), TCUnique(List("D")), TCDefault(List("B"),List(DBString("default"))), TCNotNull(List("D")))))
+
+    // NOT NULL and DEFAULT not tested thoroughly, as NULL values currently not supported by DBValue
+    
+    QueryProc.processQuery(InsertValues("constraints", Seq(Seq(DBInt(2), DBString("test"), DBDouble(4.5), DBInt(3)))))
+
+    Test.assertNoException("Insert row, should have no exceptions",
+      QueryProc.processQuery(InsertValues("constraints", Seq(Seq(DBInt(3), DBString("test1"), DBDouble(4.75), DBInt(4))))))
+
+    Test.assertAnyException("Try to insert row with not unique PRIMARY KEY",   
+      QueryProc.processQuery(InsertValues("constraints", Seq(Seq(DBInt(2), DBString("test"), DBDouble(4.5), DBInt(6))))))
+    
+    Test.assertAnyException("Try to insert row with not UNIQUE column",
+      QueryProc.processQuery(InsertValues("constraints", Seq(Seq(DBInt(6), DBString("test"), DBDouble(4.5), DBInt(3))))))
+
+    QueryProc.processQuery(CreateTable("constraints_2", Seq(("A", DBTypeInt), ("B", DBTypeText), ("C", DBTypeDouble), ("D", DBTypeInt), ("E", DBTypeInt),("F", DBTypeDouble)), Seq(TCPrimaryKey(List("A")), TCUnique(List("B","D")), TCUnique(List("C")), TCPrimaryKey(List("F")))))
+
+    QueryProc.processQuery(InsertValues("constraints_2", Seq(Seq(DBInt(1), DBString("test"), DBDouble(0.5), DBInt(10), DBInt(100), DBDouble(10.5)))))
+
+    Test.assertAnyException("Try to insert row with not UNIQUE column, multiple UNIQUE keys",
+      QueryProc.processQuery(InsertValues("constraints_2", Seq(Seq(DBInt(2), DBString("test"), DBDouble(1.5), DBInt(10), DBInt(101), DBDouble(11.5))))))
+
+    Test.assertAnyException("Try to insert row with not UNIQUE column, multiple UNIQUE keys, ver 2",
+      QueryProc.processQuery(InsertValues("constraints_2", Seq(Seq(DBInt(3), DBString("test1"), DBDouble(0.5), DBInt(12), DBInt(101), DBDouble(12.5))))))
+
+    Test.assertNoException("Only one PRIMARY KEY should work",
+      QueryProc.processQuery(InsertValues("constraints_2", Seq(Seq(DBInt(4), DBString("test2"), DBDouble(2.5), DBInt(13), DBInt(102), DBDouble(12.5))))))
+
+    Test.finishTestSet()
+
+  }
 
   def runTests() {
     evalCondition1()
     evalCondition2()
     selectTest()
     deleteTest()
+    testConstraints()
   }
 }
