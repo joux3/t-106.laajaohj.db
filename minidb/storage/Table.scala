@@ -228,6 +228,13 @@ object Table {
       case Some(t) => t
       case None => throw new TableNotFound(name)
     }
+	
+  def saveToFile(){
+    //ToDo: Table saveToFile not implemented
+  }
+  def loadFromFile(){
+    //ToDo: Table loadFromFile not implemented
+  }
 
   /** Creates a new table.
    * @param name name of table

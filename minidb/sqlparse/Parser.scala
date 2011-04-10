@@ -61,8 +61,17 @@ object Parser extends RegexParsers {
   def delete = "(?i)delete from".r ~> identifier ~ opt("(?i)where".r ~> conditions) ^^ {
     case l ~ r => SimpleDelete(l, r.getOrElse(CTrue))
   }
-
-  def statement = (createTable | insert | select | createIndex | createIndex2 | dropIndex | delete) <~ opt(";") | err("Unknown command")
+  def beginTran = "(?i)BEGIN TRAN(SACTION)?".r ^^ {
+	case _ => BeginTransaction
+  }
+  def commitTran = "(?i)COMMIT TRAN(SACTION)?".r ^^ {
+	case _ => CommitTransaction
+  }
+  def rollTran = "(?i)ROLLBACK TRAN(SACTION)?".r ^^ {
+	case _ => RollbackTransaction
+  }
+  
+  def statement = (createTable | insert | select | createIndex | createIndex2 | dropIndex | delete | beginTran | commitTran | rollTran) <~ opt(";") | err("Unknown command")
 
   def parse(sql: String): SQLExpr = {
     parseAll(statement, sql) match {
