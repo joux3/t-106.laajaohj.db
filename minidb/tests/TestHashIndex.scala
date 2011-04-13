@@ -42,8 +42,24 @@ object TestHashIndex extends RunnableTest {
     Test.finishTestSet()
   }
 
+  def testDelete {
+     Test.startTestSet("Deleting rows")
+
+     Test.assertTrue("Supports deletion", index.supportsDelete)
+
+     index.delete(new DBKey(Seq(DBInt(0))))
+
+     Test.assertTrue("Deleted correct row",
+                        !index.searchExact(new
+                            DBKey(Seq(DBInt(0)))).contains(new DBRow(Seq(DBInt(0),
+                            DBString("Zero")))))
+
+     Test.finishTestSet()
+  }
+
   def runTests {
     testAdding
     testExactSearching
+    testDelete
   }
 }
