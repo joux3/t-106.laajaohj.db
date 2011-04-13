@@ -10,6 +10,12 @@ sealed abstract class SQLExpr
 case class SimpleSelect(from: Seq[String],
                         where: ConditionExpr) extends SQLExpr
 
+/** A simple single-table delete: DELETE FROM from WHERE where
+ * where from is the name of a single table.
+ */
+case class SimpleDelete(tablename: String,
+                        where: ConditionExpr) extends SQLExpr
+
 /** INSERT INTO tablename VALUES values */
 case class InsertValues(tablename: String,
                         values: Seq[Seq[DBValue]]) extends SQLExpr
@@ -26,6 +32,10 @@ case class CreateIndex(indexname: String,
                        indextype: String,
                        tablename: String,
                        columns: Seq[String]) extends SQLExpr
+
+/** DROP INDEX indexname ON tablename */
+case class DropIndex(indexname: String,
+                     tablename: String) extends SQLExpr
 
 /** BEGIN TRANSACTION */
 case object BeginTransaction extends SQLExpr
@@ -80,9 +90,19 @@ case class VField(tablename: String, fieldname: String) extends ValueExpr
 
 
 /** Table constraints supported in CREATE TABLE
- * currently only PRIMARY KEY (columns) is supported
+ * currently only PRIMARY KEY, UNIQUE, NOT NULL and DEFAULT are supported
  */
 sealed abstract class TableConstraint
 
 case class TCPrimaryKey(columns: Seq[String]) extends TableConstraint
 
+case class TCNotNull(columns: Seq[String]) extends TableConstraint
+
+case class TCUnique(columns: Seq[String]) extends TableConstraint
+
+case class TCDefault(columns: Seq[String], values: Seq[DBValue]) extends TableConstraint
+
+case class TCCheck(conditions: ConditionExpr) extends TableConstraint
+/*
+case class TCForeignKey(columns: Seq[String]) extends TableConstraint
+*/

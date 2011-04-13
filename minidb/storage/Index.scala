@@ -5,6 +5,8 @@ import scala.collection.mutable.ArrayBuffer
 
 class IndexCreateFailed(msg: String) extends QueryProcException(msg)
 class IndexSearchFailed(msg: String) extends QueryProcException(msg)
+class IndexDeleteFailed(msg: String) extends QueryProcException(msg)
+class IndexNotFound(msg: String) extends QueryProcException(msg)
 
 /** Abstract superclass for index structures.
  * The index is a mapping from keys, i.e., the values of certain
@@ -33,6 +35,39 @@ abstract class Index(val indexName: String,
    */
   def insert(row: DBRow) {
     insert(new DBKey(columnNums map { row(_) }), row)
+  }
+  /** Does this index support deletion (delete)?
+   * Override this in the subclasses that implement the delete method.
+   * If deletion is not supported, it is done very inefficiently using
+   * rebuild.
+   */
+  def supportsDelete: Boolean = false
+  /** Deletes a row from the index given its key.
+   * @param key the key (selected columns from data)
+   * @param data the row object to delete (currently stored in the index)
+   */
+  def delete(key: DBKey, data: DBRow) {
+    throw new IndexDeleteFailed("Internal error: tried to delete from "+
+                                "an index that does not support deletion: "+
+                                this.getClass().toString)
+  }
+  /** Deletes the given row from the index.
+   * Should usually not be overriden in subclasses (calls the other delete).
+   * @param row the row to delete
+   */
+  def delete(row: DBRow) {
+    delete(new DBKey(columnNums map { row(_) }), row)
+  }
+  /** Deletes all rows with the given key from the index.
+   * Currently only used in Testindex.
+   * @param key the key to delete
+   */
+  def delete(key: DBKey) {
+    // map with identity to make a copy of the result, so that the
+    // result of searchExact does not change while the deletions are
+    // done (Seq.clone() is protected for some reason)
+    val rows = searchExact(key).map {x=>x}
+    rows foreach { row => delete(key, row) }
   }
   /** Does this index support range searches (searchRange)?
    * Override this in the subclasses that implement searchRange.
@@ -86,10 +121,14 @@ object Index {
     val index = indexType match {
       case "primitivehash" =>
         new PrimitiveHashIndex(realIndexName, columnNums)
+      case "hash" => 
+        new HashIndex(realIndexName, columnNums)
       case "rbtree" =>
         new RedBlackTreeIndex(realIndexName, columnNums)
-      case "hashindex" =>
-        new HashIndex(realIndexName, columnNums)
+     case "avltree" =>
+        new AvlTreeIndex(realIndexName, columnNums)
+     case "bplustree" =>
+        new BPlusTreeIndex(realIndexName, columnNums)
       case _ => 
         throw new IndexCreateFailed("Unknown index type: "+indexType)
     }

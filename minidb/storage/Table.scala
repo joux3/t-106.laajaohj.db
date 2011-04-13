@@ -1,5 +1,6 @@
 package minidb.storage
 import minidb.sqlexpr._
+import minidb.queryproc.EvalCondition
 import minidb.queryproc.QueryProcException
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
@@ -65,6 +66,21 @@ abstract class Table(columns: Seq[(String, DBType)],
     indexes += index
   }
 
+  /** Removes the index with the given name 
+    * returns the deleted index */
+  def dropIndex(indexName: String) = {
+    val i = indexes.find {x => x.indexName == indexName }
+    i match {
+      case Some(index) => {
+        indexes -= index
+        Index.allIndexes -= index
+      }
+      case None => {
+        throw new IndexNotFound("No index named \""+indexName+"\"!")
+      }
+    }
+  }
+
   /** Checks that row has values whose types match the columns of this table */
   def checkTypes(row: DBRow) {
     if (row.size != columnTypes.size)
@@ -75,19 +91,56 @@ abstract class Table(columns: Seq[(String, DBType)],
                                " should be of type "+t)
     }
   }
-
+  
   /** Checks that row satisfies any constraints of this table */
-  def checkConstraints(row: DBRow) {
+  def checkConstraints(row: DBRow): DBRow = {
+    var checkedRow = row
     constraints foreach { c =>
       c match {
         case TCPrimaryKey(pkcols) => {
-          // XXX should check that the columns in the primary key are
-          // unique and throw new InsertFailed if not
-          ()
+          // checks that the PRIMARY KEY columns are
+          // unique and throws new InsertFailed if not
+          val i = indexes.find { x => x.indexName.startsWith("_primarykey_") }
+          val key = new DBKey(i.get.columnNums map { row(_) })
+          if (!i.get.searchExact(key).isEmpty) 
+            throw new InsertFailed("Inserted rows PRIMARY KEY is not unique.")              
+        } 
+	case TCNotNull(nncols) => { 
+	  // checks that the values in NOT NULL columns are not NULL
+	  // if are throws new InsertFailed
+	  nncols foreach { col =>
+            val colnum = columnNames.indexOf(col)
+            if (row(colnum) == null)
+              throw new InsertFailed("NOT NULL column is NULL.")
+          }
+	}
+
+	case TCUnique(unicols) => { 
+          val i = indexes.find { x => x.indexName.startsWith("_unique_" + unicols.toString) }
+          val key = new DBKey(i.get.columnNums map { row(_) })
+	  if (!i.get.searchExact(key).isEmpty) 	  
+	    throw new InsertFailed("Inserted rows UNIQUE key is not unique.")                         
         }
-      }
+  
+        // sets DEFAULT keys to default value, if they are null
+        case TCDefault(defcols, defvalues) => { 
+          defcols foreach { col =>
+            val colnum = columnNames.indexOf(col)
+            if (row(colnum) == null)  
+	      checkedRow = new DBRow(checkedRow.updated(colnum, defvalues(defcols.indexOf(columnNames(colnum)))))           
+          }
+        }
+        case TCCheck(conditions) => {
+          if (EvalCondition.eval(conditions, columnNames.map{("", _)}, row) != DBBoolean(true))
+            throw new InsertFailed("Inserted row doesn't fulfill CHECK constraint.")
+        }
+      }  
     }
+    checkedRow
   }
+  
+    
+  
 
   /** Inserts a new row into this table.
    * Checks the types and constraints of the given values.
@@ -96,11 +149,24 @@ abstract class Table(columns: Seq[(String, DBType)],
    */
   def insert(row: DBRow) {
     checkTypes(row)
-    checkConstraints(row)
-    doInsert(row)
-    indexes foreach { _.insert(row) }
+    val checkedRow = checkConstraints(row)
+    doInsert(checkedRow)
+    indexes foreach { _.insert(checkedRow) }
   }
 
+  /** Deletes a single row from this table.
+   * The given row object must be currently stored in the table.
+   * Also deletes the row from all indexes.
+   */
+  def delete(row: DBRow) {
+    doDelete(row)
+    indexes foreach { i =>
+      if (i.supportsDelete)
+        i.delete(row) 
+      else // fall back to rebuilding the whole index
+        i.rebuild(allRows)
+    }
+  }
 
   /** Returns indexes that have atleast one of the given columns
    *  as its key
@@ -146,6 +212,9 @@ abstract class Table(columns: Seq[(String, DBType)],
    */
   protected def doInsert(row: DBRow)
 
+  /** Actually deletes a row from this table. */
+  protected def doDelete(row: DBRow)
+
   /** Returns a sequence of all the rows in this table (in any order) */
   def allRows: Seq[DBRow]
 }
@@ -162,6 +231,13 @@ object Table {
       case Some(t) => t
       case None => throw new TableNotFound(name)
     }
+	
+  def saveToFile(){
+    //ToDo: Table saveToFile not implemented
+  }
+  def loadFromFile(){
+    //ToDo: Table loadFromFile not implemented
+  }
 
   /** Creates a new table.
    * @param name name of table

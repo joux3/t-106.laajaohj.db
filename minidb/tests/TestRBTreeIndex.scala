@@ -46,9 +46,20 @@ object TestRBTreeIndex extends RunnableTest {
     Test.finishTestSet()
   }
 
+  def testRangeSame {
+    Test.startTestSet("testing same high/low")
+    val key = new DBKey(Seq(DBInt(testCount/2)))
+    Test.assertTrue("no inclusive", index.searchRange(key, key, false, false).isEmpty)
+    Test.assertTrue("low inclusive", index.searchRange(key, key, true, false).size == 2)
+    Test.assertTrue("high inclusive", index.searchRange(key, key, false, true).size == 2)
+    Test.assertTrue("both inclusive", index.searchRange(key, key, true, true).size == 2)
+    Test.finishTestSet()
+  }
+
   def runTests {
     testAdding
     testExactSearching
     testRangeQuery
+    testRangeSame
   }
 }

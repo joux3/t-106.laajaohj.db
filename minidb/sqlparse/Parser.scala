@@ -1,122 +1,87 @@
 package minidb.sqlparse
+import minidb.queryproc.QueryProcException
 import minidb.sqlexpr._
+import scala.util.parsing.combinator._
 
-object Parser {
-  // This function tries to match the sql query with the supported 
-  // query types and sends it to the parser defined for that type.
+class ParserError(msg: String) extends QueryProcException(msg)
+
+object Parser extends RegexParsers {
+  def text = """\"[^"]*\" ?""".r ^^ {x => DBString(x.init.tail)}
+  def double = """[0-9]*\.[0-9]*""".r ^^ {x => DBDouble(x.toDouble)}
+  def int = ("""[0-9]+""".r) ^^ {x => DBInt(x.toInt)}
+  def boolean = """(?i)(true|false)""".r ^^ {x => DBBoolean(x.toLowerCase.equals("true"))}
+  def dbvalue = text | double | int | boolean
+  def constant = dbvalue ^^ {x => VConstant(x)}
+
+  def identifier = """\w+""".r
+  def field = opt(identifier <~ ".") ~ identifier ^^ {case l ~ r => VField(l.getOrElse(""), r)}
+  def term = constant | field
+
+  def eq = term ~ "=" ~ term ^^ {case left ~ "=" ~ right => CCompare(left, right, CEquals)}
+  def lt = term ~ "<" ~ term ^^ {case left ~ _ ~ right => CCompare(left, right, CLess)}
+  def gt = term ~ ">" ~ term ^^ {case left ~ _ ~ right => CCompare(left, right, CGreater)}
+  def le = term ~ "<=" ~ term ^^ {case left ~ _ ~ right => CCompare(left, right, CLessEq)}
+  def ge = term ~ ">=" ~ term ^^ {case left ~ _ ~ right => CCompare(left, right, CGreaterEq)}
+
+  def condition = eq | lt | gt | le | ge | "(" ~> conditions <~ ")"
+  
+  def and = "(?i)and".r
+  def or = "(?i)or".r
+
+  def conditions: Parser[ConditionExpr] = condition * (and ^^^ CAnd | or ^^^ COr)
+  def intType = "(?i)int".r ^^^ DBTypeInt
+  def doubleType = "(?i)double".r ^^^ DBTypeDouble
+  def booleanType = "(?i)bool".r ^^^ DBTypeBoolean
+  def textType = "(?i)text".r ^^^ DBTypeText
+  def columnType = intType | doubleType | booleanType | textType
+  
+  def identifiers = repsep(identifier, ",")
+  def columnDef = identifier ~ columnType ^^ {case l ~ r => (l, r)} | err("Failed to match column def")
+
+  def primaryKey = "(?i)primary key".r ~> "(" ~> identifiers <~ ")" ^^ {x => TCPrimaryKey(x)}
+  def unique = "(?i)unique".r ~> "(" ~> identifiers <~ ")" ^^ {x => TCUnique(x)}
+  def check = "(?i)check".r ~> "(" ~> conditions <~ ")" ^^ {x => TCCheck(x)}
+  def constraintDef = primaryKey | unique | check | err("Unknown constraint")
+
+  def createTable = "(?i)create table".r ~> identifier ~ "(" ~ repsep(columnDef, ",") ~ opt("," ~> repsep(constraintDef, ",")) <~ ")" ^^ {
+    case l ~ _ ~ r ~ c => CreateTable(l, r, c.getOrElse(List()))
+  }
+
+  def values = repsep(repsep(dbvalue, ","), ",")
+  def insert = "(?i)insert into".r ~> identifier ~ "(?i)values".r ~ "(" ~ values <~ ")" ^^ {
+    case tablename ~ _ ~ _ ~ values => InsertValues(tablename, values)
+  }
+
+  def select = "(?i)select \\* from".r ~> identifiers ~ opt("(?i)where".r ~> conditions) ^^ {
+    case l ~ r => SimpleSelect(l, r.getOrElse(CTrue))
+  }
+
+  def createIndex = "(?i)create index".r ~> opt("(?i)using".r ~> identifier) ~ "(?i)on".r ~ identifier ~ "(" ~ identifiers <~ ")" ^^ {
+    case iT ~ _ ~ tN ~ _ ~ c => CreateIndex("", iT.getOrElse(""), tN, c)
+  }
+
+  def createIndex2 = "(?i)create index".r ~> identifier ~ opt("(?i)using".r ~> identifier) ~ "(?i)on".r ~ identifier ~ "(" ~ identifiers <~ ")" ^^ {
+    case iN ~ iT ~ _ ~ tN ~ _ ~ c => CreateIndex(iN, iT.getOrElse(""), tN, c)
+  }
+
+  def dropIndex = "(?i)drop index".r ~> identifier ~ "(?i)on".r ~ identifier ^^ {
+    case l ~ _ ~ r => DropIndex(l, r)
+  }
+
+  def delete = "(?i)delete from".r ~> identifier ~ opt("(?i)where".r ~> conditions) ^^ {
+    case l ~ r => SimpleDelete(l, r.getOrElse(CTrue))
+  }
+
+  def beginTran = "(?i)BEGIN TRAN(SACTION)?".r ^^^ BeginTransaction
+  def commitTran = "(?i)COMMIT TRAN(SACTION)?".r ^^^ CommitTransaction
+  def rollTran = "(?i)ROLLBACK TRAN(SACTION)?".r ^^^ RollbackTransaction
+  
+  def statement = (createTable | insert | select | createIndex | createIndex2 | dropIndex | delete | beginTran | commitTran | rollTran) <~ opt(";") | err("Unknown command")
+
   def parse(sql: String): SQLExpr = {
-    val matchCreateTable = """(?i)CREATE TABLE (\w+) \(([a-zA-Z0-9 ,]*)\);?""".r
-    val matchInsert = """(?i)INSERT INTO (\w+) VALUES \(([a-zA-Z0-9 ,.\(\)\"]*)\);?""".r
-    val matchSelect1 = """(?i)SELECT \* FROM ([a-zA-Z0-9, ]+) WHERE ([a-zA-Z0-9 ,.\"]);?""".r
-    val matchSelect2 = """(?i)SELECT \* FROM ([a-zA-Z0-9, ]+);?""".r
-    val matchCreateIndex1 = """(?i)CREATE INDEX (\w*) ?USING (\w*) ON (\w+) \(([a-zA-Z0-9 ,]+)\)""".r
-    val matchCreateIndex2 = """(?i)CREATE INDEX (\w*) ?ON (\w+) \(([a-zA-Z0-9 ,]+)\)""".r
-    
-    sql match {
-      case matchCreateTable(tableName, columnDefinitions) => parseCreateTable(tableName, columnDefinitions)
-      case matchInsert(tableName, values) => parseInsert(tableName, values)
-      case matchSelect1(tableNames, conditions) => parseSelect(tableNames, conditions)
-      case matchSelect2(tableNames) => parseSelect(tableNames, null)
-      case matchCreateIndex1(indexName, indexType, tableName, columns) => parseCreateIndex(tableName, columns, indexName, indexType)
-      case matchCreateIndex2(indexName, tableName, columns) => parseCreateIndex(tableName, columns, indexName, "")
-      case _ => CommitTransaction
-    }
-  }
-  
-  // Parse queries like:
-  // CREATE TABLE tablename (column1 INT, column2 TEXT, column3 DOUBLE)
-  def parseCreateTable(tableName: String, columnDefinitions: String): SQLExpr = {
-    val columnDefinitionParts = columnDefinitions.split(",")
-    var columns : List[(String, DBType)] = List()
-    columnDefinitionParts.foreach(part => {
-      var columnParts = part.trim.split(" ");
-      var columnName = columnParts(0)
-      var columnType = columnParts(1)
-      if(columnType.toLowerCase() == "int") {
-        columns = columns ::: List((columnName, DBTypeInt))
-      } else if(columnType.toLowerCase() == "double") {
-        columns = columns ::: List((columnName, DBTypeDouble))
-      } else if(columnType.toLowerCase() == "bool") {
-        columns = columns ::: List((columnName, DBTypeBoolean))
-      } else if(columnType.toLowerCase() == "text") {
-        columns = columns ::: List((columnName, DBTypeText))
-      }
-    })
-    new CreateTable(tableName, columns, List())
-  }
-  
-  // Parse queries like:
-  // CREATE INDEX indexname USING indextype ON tablename (columns)
-  def parseCreateIndex(tableName: String, columns: String, indexName: String, indexType: String): SQLExpr = {
-    var columnList = columns.split(",")
-    var columnListFormatted : List[(String)] = List()
-    columnList.foreach(column => {
-      columnListFormatted = columnListFormatted ::: List(column.trim)
-    })
-    new CreateIndex(indexName, indexType, tableName, columnListFormatted)
-  }
-  
-  // Parse queries like:
-  // INSERT INTO tablename VALUES (5, "text", 3.2)
-  def parseInsert(tableName: String, valueString: String): SQLExpr = {
-    val values = valueString.split(",")
-    var valueList : List[(DBValue)] = List()
-    values.foreach(value => {
-      val parsedValue = parseValue(value)
-      if(parsedValue == None) {
-        valueList = valueList ::: List(new DBString(""))
-      } else {
-        valueList = valueList ::: List(parsedValue)
-      }
-    })
-    new InsertValues(tableName, List(valueList))
-  }
-  
-  // Parse queries like:
-  // SELECT * FROM tablename
-  // Note: This doesn't support conditions yet
-  def parseSelect(tableNames: String, conditions: String): SQLExpr = {
-    val tables = tableNames.split(",")
-    var tableList : List[(String)] = List()
-    tables.foreach(tableName => {
-      tableList = tableList ::: List(tableName.trim)
-    })
-    new SimpleSelect(tableList, CTrue)
-  }
-  
-  // Parse comparison strings to objects. 
-  // It will be used with condition-parser when that is done.
-  def parseComparison(comparison: String): CComparisonType = {
-    comparison match {
-      case ">" => CGreater
-      case ">=" => CGreaterEq
-      case "<" => CLess
-      case "<=" => CLessEq
-      case "=" => CEquals
-      case _ => null
-    }
-  }
-  
-  // Parse value (e.g. int or text) from given string.
-  def parseValue(value: String): DBValue = {
-    var valueTrimmed = value.trim
-    val matchText = """\"([a-zA-Z0-9 ,.]*)\" ?""".r
-    val matchDouble = """([0-9]*)\.([0-9]*)""".r
-    val matchInt = """([0-9]+)""".r
-    val matchBoolean = """(?i)(true|false)""".r
-
-    valueTrimmed match {
-      case matchText(text) => new DBString(text)
-      case matchDouble(begin, end) => new DBDouble((begin+"."+end).toDouble)
-      case matchInt(number) => new DBInt(number.toInt)
-      case matchBoolean(boolean) => {
-        if(boolean.toLowerCase == "true") {
-          new DBBoolean(true)
-        } else {
-          new DBBoolean(false)
-        }
-      }
-      case _ => null
+    parseAll(statement, sql) match {
+      case Success(result, _) => result
+      case e: NoSuccess => throw new ParserError(e.toString)
     }
   }
 }

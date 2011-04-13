@@ -15,6 +15,10 @@ class HeapStoredTable(columns: Seq[(String, DBType)],
     contents += row
   }
 
+  def doDelete(row: DBRow) {
+    contents -= row
+  }
+
   def allRows = contents
 }
 

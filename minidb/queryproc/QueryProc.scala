@@ -1,4 +1,5 @@
 package minidb.queryproc
+import minidb.journal.Journal
 import minidb.sqlexpr._
 import minidb.storage.Table
 import minidb.storage.DBRow
@@ -12,6 +13,9 @@ abstract class QueryProcException(msg: String) extends Exception(msg)
 class QueryError(msg: String) extends QueryProcException(msg)
 
 object QueryProc {
+  // holds the count of rows filtered for the latest SELECT
+  var filteredRowCount = 0
+
   /** Executes the given SELECT query */
   private def processSelect(q: SQLExpr): QueryResult = q match {
     case SimpleSelect(from, where) => {
@@ -24,14 +28,23 @@ object QueryProc {
       var possibleRows: Seq[DBRow] = table.allRows
       // XXX needs tests!
       // try to find some possible indexes
-      val fieldsUsed = EvalCondition.getFieldConstantEquals(where)
+      val equalComparisons = EvalCondition.getFieldConstantEquals(where)
+      val fieldsUsed = equalComparisons._1
+      // can we safely skip filtering if we have a 100% matching index
+      // (except a full table scan at this line)
+      var needsFiltering = true
       if (!fieldsUsed.isEmpty) {
         val indexes = table.getUsableIndexes(fieldsUsed.map(_._1))
         if (!indexes.isEmpty) {
           // use the index with longest number of common columns
           val index = indexes(0)
           val indexNums = index.columnNums
-          // contruct DBKey for index
+          // check if the index can be used to guarantee
+          // conditions ie. no CComparisons have been dropped
+          // and index matches the conditions
+          needsFiltering = equalComparisons._2 || 
+                           indexNums.length != fieldsUsed.length
+          // construct DBKey for index
           val valueArray = new Array[DBValue](indexNums.size)
           var placedValues = 0
           fieldsUsed.foreach {field => 
@@ -49,14 +62,22 @@ object QueryProc {
           } else {
             possibleRows = index.searchExact(new DBKey(valueArray))
           }
-        } 
+        }
       }
 
-      val rows = possibleRows.filter { row =>
-        EvalCondition.eval(where,
-                           table.columnNames.map{(from(0), _)},
-                           row) == DBBoolean(true) }
-      new QueryResult(table.columnNames, rows)
+      filteredRowCount = 0
+      if (needsFiltering) {
+        val rows = possibleRows.filter { row =>
+        // avoid possible O(n) behaviour of possibleRows.size
+          filteredRowCount += 1 
+          EvalCondition.eval(where,
+            table.columnNames.map{(from(0), _)},
+          row) == DBBoolean(true) 
+        }
+        new QueryResult(table, rows)
+      } else {
+        new QueryResult(table, possibleRows)
+      }
     }
     case _ => throw new Exception("Internal error in processSelect!")
   }
@@ -64,6 +85,13 @@ object QueryProc {
   /** Executes the given query */
   def processQuery(q: SQLExpr): Option[QueryResult] = q match {
     case SimpleSelect(_, _) => Some(processSelect(q))
+    case SimpleDelete(tablename, where) => {
+      // find the rows to be deleted by creating a SELECT query
+      val result = processSelect(SimpleSelect(List(tablename), where))
+      // and delete all results produced by this query
+      result.deleteAllRows()
+      None
+    }
     case InsertValues(tablename, values) => {
       val table = Table.find(tablename)
       values foreach { row => table insert new DBRow(row) }
@@ -74,9 +102,14 @@ object QueryProc {
       constraints foreach { c =>
         c match {
           case TCPrimaryKey(columns) =>
-            table.createIndex(tablename + "_primarykey",
-                              Index.defaultIndexType,
+            table.createIndex("_primarykey_" + tablename,
+                              "hash",
                               columns)
+	  case TCUnique(columns) =>
+            table.createIndex("_unique_" + columns.toString + tablename,
+                              "hash",
+                              columns)
+          case _ =>
         }
       }
       None
@@ -84,15 +117,23 @@ object QueryProc {
     case CreateIndex(indexname, indextype, tablename, columns) => {
       val realindexname =
         if (indexname != "") indexname else tablename + "_index"
+      if (realindexname.head == '_')
+        throw new QueryError("User created indexnames starting with _ not allowed.")
       val realindextype = 
         if (indextype != "") indextype else Index.defaultIndexType
       val table = Table.find(tablename)
       table.createIndex(realindexname, realindextype, columns)
       None
     }
-    // XXX unimplemented:
-    case BeginTransaction => None
-    case CommitTransaction => None
-    case RollbackTransaction => None
+    case DropIndex(indexname, tablename) => {
+      if (indexname.head == '_')
+        throw new QueryError("User created indexnames starting with _ not allowed.")
+      val table = Table.find(tablename)
+      table.dropIndex(indexname)
+      None
+    }
+    case BeginTransaction => {Journal.beginTransaction; None}
+    case CommitTransaction => {Journal.commitTransaction; None}
+    case RollbackTransaction => {Journal.rollbackTransaction; None}
   }
 }
