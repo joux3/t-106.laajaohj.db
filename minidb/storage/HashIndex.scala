@@ -53,6 +53,22 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
     }
   }
 
+  override def supportsDelete: Boolean = true
+
+  override def delete(key: DBKey, data: DBRow) {
+    val hash = key.hashCode % currentTableSize
+    val data = table(hash)
+
+    if (data == null) throw new IndexDeleteFailed("tried to delete a nonexistent row!")
+    else {
+      val length = data.length
+
+      table(hash) = data.filterNot( d => d.key == key )
+
+      if (table(hash).length == length) throw new IndexDeleteFailed("tried to delete a nonexistent row!")
+    }
+  }
+
   override def rebuild(rows: Seq[DBRow]) {
     currentTableSize = scala.math.max(rows.size * 2, currentTableSize)
     clear()
