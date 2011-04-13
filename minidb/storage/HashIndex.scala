@@ -44,7 +44,7 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
     if (table(hash) == null) {
       table(hash) = List(entry)
     } else {
-      rows = t.row :: rows
+      table(hash) = entry :: table(hash) 
     }
 
     // XXX find new max load factor as the definition got changed
@@ -63,7 +63,7 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
     else {
       val length = data.length
 
-      table(hash) = data.filterNot( d => d.key == key )
+      table(hash) = data.filter( d => d.key != key && d.row != data )
 
       if (table(hash).length == length) throw new IndexDeleteFailed("tried to delete a nonexistent row!")
     }
