@@ -90,7 +90,7 @@ case class VField(tablename: String, fieldname: String) extends ValueExpr
 
 
 /** Table constraints supported in CREATE TABLE
- * currently only PRIMARY KEY, UNIQUE, NOT NULL and DEFAULT are supported
+ * currently only CHECK, PRIMARY KEY and UNIQUE are supported fully.
  */
 sealed abstract class TableConstraint
 
@@ -103,6 +103,5 @@ case class TCUnique(columns: Seq[String]) extends TableConstraint
 case class TCDefault(columns: Seq[String], values: Seq[DBValue]) extends TableConstraint
 
 case class TCCheck(conditions: ConditionExpr) extends TableConstraint
-/*
-case class TCForeignKey(columns: Seq[String]) extends TableConstraint
-*/
+
+case class TCForeignKey(columns: Seq[String], reftablename: String, reftablecolumns: Seq[String]) extends TableConstraint

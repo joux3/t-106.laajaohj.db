@@ -205,6 +205,18 @@ object Testqueryproc extends RunnableTest {
 
     Test.assertNoException("Only one PRIMARY KEY should work",
       QueryProc.processQuery(InsertValues("constraints_2", Seq(Seq(DBInt(4), DBString("test2"), DBDouble(2.5), DBInt(13), DBInt(102), DBDouble(12.5))))))
+    QueryProc.processQuery(CreateTable("reftable", Seq(("F", DBTypeInt), ("A", DBTypeText), ("W", DBTypeDouble)), Seq(TCPrimaryKey(List("F", "A")))))
+
+    QueryProc.processQuery(CreateTable("tabletoref", Seq(("R", DBTypeInt), ("B", DBTypeText), ("T", DBTypeInt)), Seq(TCPrimaryKey(List("R")), TCForeignKey(List("T","B"), "reftable", List("F", "A")))))
+
+    for (i <- 1 to 5) { 
+      QueryProc.processQuery(InsertValues("reftable", Seq(Seq(DBInt(2 + i), DBString("test" + i.toString), DBDouble(4.5 + i.toDouble)))))
+    }
+    Test.assertNoException("FOREIGN KEY should be ok",
+      QueryProc.processQuery(InsertValues("tabletoref", Seq(Seq(DBInt(2), DBString("test1"), DBInt(3))))))
+
+    Test.assertAnyException("FOREIGN KEY not found",
+      QueryProc.processQuery(InsertValues("tabletoref", Seq(Seq(DBInt(2), DBString("tes"), DBInt(3))))))
 
     Test.finishTestSet()
 
