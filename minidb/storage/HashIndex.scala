@@ -25,7 +25,7 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
 
       for (t <- data) {
         if (t.key == key) {
-          rows = rows ::: List(t.row)
+          rows = t.row :: rows
         }
       }
 
@@ -44,7 +44,7 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
     if (table(hash) == null) {
       table(hash) = List(entry)
     } else {
-      table(hash) = table(hash) ::: List(entry)
+      rows = t.row :: rows
     }
 
     // XXX find new max load factor as the definition got changed
