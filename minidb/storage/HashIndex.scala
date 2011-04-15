@@ -63,9 +63,15 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
     else {
       val length = rows.length
 
-      table(hash) = rows.filterNot( d => d.key == key && d.row == data )
+      val index = rows.findIndexOf( r => r.key == key && r.row == data )
 
-      if (table(hash).length == length) throw new IndexDeleteFailed("tried to delete a nonexistent row!")
+      if (index > -1) {
+        if (index == 0) table(hash) = rows tail
+        else if (index == rows.length - 1) table(hash) = rows dropRight 1
+        else table(hash) = rows.drop(index) ::: rows.dropRight(length - index)
+      } else {
+        throw new IndexDeleteFailed("tried to delete a nonexistent row!")
+      }
     }
   }
 

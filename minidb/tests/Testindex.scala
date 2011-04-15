@@ -336,7 +336,7 @@ object Testindex extends RunnableTest {
   def runTests()
   {
     testIndex( () => {new PrimitiveHashIndex("PrimitiveHash",Seq(0))})
-    //testIndex( () => {new HashIndex("PrimitiveHash",Seq(0))})
+    testIndex( () => {new HashIndex("PrimitiveHash",Seq(0))})
     testIndex( () => {new AvlTreeIndex("AvlTree",Seq(0))})
     testIndex( () => {new RedBlackTreeIndex("RedBlackTree",Seq(0))})
     testIndex( () => {new BPlusTreeIndex("BPlusTree",Seq(0))})
