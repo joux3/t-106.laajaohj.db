@@ -134,6 +134,15 @@ abstract class Table(columns: Seq[(String, DBType)],
           if (EvalCondition.eval(conditions, columnNames.map{("", _)}, row) != DBBoolean(true))
             throw new InsertFailed("Inserted row doesn't fulfill CHECK constraint.")
         }
+        case TCForeignKey(columns, reftablename, refcolumns) => { //XXX needs tests
+          val refTable = Table.find(reftablename)
+          val i = refTable.indexes.find { x => x.indexName.startsWith("_primarykey_") }
+          val refColumns = columns map { name => // columnnumbers for the FOREIGN KEY columns
+            columnNames findIndexOf { _ == name } }
+          val key = new DBKey(refColumns map { row(_) })
+          if (i.get.searchExact(key).isEmpty) 	  
+	    throw new InsertFailed("Inserted rows FOREIGN KEY not found in REFERENCED tables PRIMARY KEY.")                         
+        }
       }  
     }
     checkedRow
@@ -251,6 +260,29 @@ object Table {
              constraints: Seq[TableConstraint]): Table = {
     if (ttype != "heap")
       throw new CreateTableFailed("only table type \"heap\" is supported")
+    constraints foreach { c => 
+      c match { 
+          case TCForeignKey(columns, reftablename, refcolumns) => {
+            if (columns.size != refcolumns.size)
+              throw new CreateTableFailed("Number of FOREIGN KEY columns is not equal to REFERENCED columns.")
+
+            val refTable = Table.find(reftablename)
+            val i = refTable.indexes.find { x => x.indexName.startsWith("_primarykey_") }
+            i match {
+              case Some(index) => { 
+                val refColumnNums = refcolumns map { name => 
+                  refTable.columnNames findIndexOf { _ == name } }
+                if (!refColumnNums.sameElements(index.columnNums))
+                  throw new CreateTableFailed("REFERENCED columns are not REFERENCED tables PRIMARY KEY.")
+              }
+              case None => { 
+                throw new CreateTableFailed("REFERENCED table has no PRIMARY KEY.")
+              }
+            }
+          }
+          case _ =>
+        }
+      }
     val table = new HeapStoredTable(columns, constraints)
     allTables += (name -> table)
     table
