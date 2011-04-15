@@ -57,9 +57,31 @@ object TestHashIndex extends RunnableTest {
      Test.finishTestSet()
   }
 
+  def testDeletionOfDuplicates {
+    Test.startTestSet("Deleting duplicates")
+
+    val key = new DBKey(Seq(DBString("Duplicate")))
+    val row = new DBRow(Seq(DBString("Duplicate"), DBString("More content")))
+
+    for (i <- 1 to 4) {
+      index.insert(key, row) 
+    }
+
+    Test.assertTrue("Inserted duplicates correctly",
+        index.searchExact(key).length == 4)
+
+    index.delete(key, row)
+
+    Test.assertTrue("Correctly deleted one and only one duplicate",
+        index.searchExact(key).length == 3)
+
+    Test.finishTestSet()
+  }
+
   def runTests {
     testAdding
     testExactSearching
     testDelete
+    testDeletionOfDuplicates
   }
 }

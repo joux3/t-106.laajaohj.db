@@ -57,13 +57,13 @@ class HashIndex(override val indexName: String, columnNums: Seq[Int]) extends In
 
   override def delete(key: DBKey, data: DBRow) {
     val hash = key.hashCode % currentTableSize
-    val data = table(hash)
+    val rows = table(hash)
 
-    if (data == null) throw new IndexDeleteFailed("tried to delete a nonexistent row!")
+    if (rows == null) throw new IndexDeleteFailed("tried to delete a nonexistent row!")
     else {
-      val length = data.length
+      val length = rows.length
 
-      table(hash) = data.filter( d => d.key != key && d.row != data )
+      table(hash) = rows.filterNot( d => d.key == key && d.row == data )
 
       if (table(hash).length == length) throw new IndexDeleteFailed("tried to delete a nonexistent row!")
     }
